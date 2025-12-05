@@ -34,5 +34,5 @@ RUN mkdir -p /app/storage
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["uvicorn", "api_simple:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the V2 API with multi-agent system and Truth Market
+CMD ["uvicorn", "api_v2:app", "--host", "0.0.0.0", "--port", "8000"]

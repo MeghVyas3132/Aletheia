@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle, XCircle, AlertTriangle, Shield, Brain, FileText, Activity, Clock, Link as LinkIcon } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Shield, Brain, FileText, Activity, Clock, Link as LinkIcon, Users, Scale, Target, Coins } from "lucide-react";
 import clsx from "clsx";
 
 interface VerificationResultProps {
@@ -19,18 +19,22 @@ export default function VerificationResult({ data, onReset }: VerificationResult
         confidence_level,
         summary, 
         sources, 
-        forensic_analysis, 
-        chain_metadata,
+        forensic_analysis,
         processing_time,
-        aptos_tx,
-        aptos_status,
-        aptos_explorer_url,
-        on_chain_verdict,
-        download_url
+        download_url,
+        // V2 additions
+        triage,
+        council_vote,
+        debate_rounds,
+        devils_advocate,
+        market_id,
+        market,
+        claim_id
     } = data;
 
-    const isTrue = truth_probability >= 60;
-    const isFalse = truth_probability <= 40;
+    const truthProb = truth_probability || 50;
+    const isTrue = truthProb >= 60;
+    const isFalse = truthProb <= 40;
 
     const statusColor = isTrue ? "text-emerald-500" : isFalse ? "text-rose-500" : "text-amber-500";
     const borderColor = isTrue ? "border-emerald-500/50" : isFalse ? "border-rose-500/50" : "border-amber-500/50";
@@ -106,12 +110,69 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                     >
                         <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
                             <span className="w-2 h-2 bg-blue-500"></span>
-                            AI Analysis
+                            AI Council Analysis
                         </h3>
                         <div className="text-foreground/80 leading-relaxed text-sm md:text-base border-l border-border pl-6">
                             <p>{summary}</p>
                         </div>
                     </motion.section>
+
+                    {/* AI Council Vote */}
+                    {council_vote && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 }}
+                        >
+                            <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
+                                <span className="w-2 h-2 bg-purple-500"></span>
+                                <Users className="w-4 h-4" />
+                                Council Vote ({debate_rounds || 3} Rounds)
+                            </h3>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 text-center">
+                                    <div className="text-3xl font-bold text-emerald-500">{council_vote.true || 0}</div>
+                                    <div className="text-xs text-muted-foreground uppercase mt-1">True</div>
+                                </div>
+                                <div className="bg-rose-500/10 border border-rose-500/30 p-4 text-center">
+                                    <div className="text-3xl font-bold text-rose-500">{council_vote.false || 0}</div>
+                                    <div className="text-xs text-muted-foreground uppercase mt-1">False</div>
+                                </div>
+                                <div className="bg-amber-500/10 border border-amber-500/30 p-4 text-center">
+                                    <div className="text-3xl font-bold text-amber-500">{council_vote.uncertain || 0}</div>
+                                    <div className="text-xs text-muted-foreground uppercase mt-1">Uncertain</div>
+                                </div>
+                            </div>
+                        </motion.section>
+                    )}
+
+                    {/* Devil's Advocate */}
+                    {devils_advocate && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.18 }}
+                        >
+                            <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
+                                <span className="w-2 h-2 bg-rose-500"></span>
+                                <Target className="w-4 h-4" />
+                                Devil&apos;s Advocate
+                            </h3>
+                            <div className="border border-rose-500/30 bg-rose-500/5 p-4">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-xs text-muted-foreground uppercase">Attack Strength</span>
+                                    <span className={clsx(
+                                        "text-sm font-bold uppercase",
+                                        devils_advocate.attack_strength === "strong" ? "text-rose-500" :
+                                        devils_advocate.attack_strength === "moderate" ? "text-amber-500" : "text-emerald-500"
+                                    )}>
+                                        {devils_advocate.attack_strength}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-foreground/70">{devils_advocate.recommendation}</p>
+                            </div>
+                        </motion.section>
+                    )}
 
                     {/* Sources */}
                     <motion.section
@@ -125,16 +186,23 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                         </h3>
                         <div className="grid gap-px bg-border border border-border">
                             {sources && sources.length > 0 ? (
-                                sources.map((source: any, i: number) => (
-                                    <div key={i}>
-                                        {source.results && source.results.map((res: any, j: number) => (
+                                sources.map((source: any, i: number) => {
+                                    // Handle both old format (with results array) and V2 format (direct)
+                                    if (source.results) {
+                                        return source.results.map((res: any, j: number) => (
                                             <a key={`${i}-${j}`} href={res.url} target="_blank" rel="noopener noreferrer" className="block group bg-card p-4 hover:bg-muted transition-colors">
                                                 <h4 className="font-bold text-foreground text-sm group-hover:text-blue-500 truncate uppercase mb-1">{res.title}</h4>
                                                 <p className="text-xs text-muted-foreground truncate font-mono">{res.url}</p>
                                             </a>
-                                        ))}
-                                    </div>
-                                ))
+                                        ));
+                                    }
+                                    return (
+                                        <a key={i} href={source.url} target="_blank" rel="noopener noreferrer" className="block group bg-card p-4 hover:bg-muted transition-colors">
+                                            <h4 className="font-bold text-foreground text-sm group-hover:text-blue-500 truncate uppercase mb-1">{source.title || "Source"}</h4>
+                                            <p className="text-xs text-muted-foreground truncate font-mono">{source.url}</p>
+                                        </a>
+                                    );
+                                })
                             ) : (
                                 <div className="bg-card p-4 text-muted-foreground text-sm italic">No sources found.</div>
                             )}
@@ -159,18 +227,18 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                         <div className="space-y-6">
                             <div className="flex justify-between items-center border-b border-border pb-4">
                                 <span className="text-xs uppercase text-muted-foreground">Forensic Verdict</span>
-                                <span className="text-sm font-bold uppercase text-foreground">{forensic_analysis.verdict || "UNKNOWN"}</span>
+                                <span className="text-sm font-bold uppercase text-foreground">{forensic_analysis?.verdict || "UNKNOWN"}</span>
                             </div>
 
                             <div>
                                 <div className="flex justify-between text-xs uppercase mb-2">
                                     <span className="text-muted-foreground">Integrity Score</span>
-                                    <span className="text-foreground">{(forensic_analysis.integrity_score * 100).toFixed(0)}%</span>
+                                    <span className="text-foreground">{((forensic_analysis?.integrity_score || 0) * 100).toFixed(0)}%</span>
                                 </div>
                                 <div className="h-1 bg-muted w-full">
                                     <div
                                         className="h-full bg-purple-500"
-                                        style={{ width: `${forensic_analysis.integrity_score * 100}%` }}
+                                        style={{ width: `${(forensic_analysis?.integrity_score || 0) * 100}%` }}
                                     />
                                 </div>
                             </div>
@@ -178,18 +246,18 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             <div>
                                 <div className="flex justify-between text-xs uppercase mb-2">
                                     <span className="text-muted-foreground">AI Probability</span>
-                                    <span className="text-foreground">{(forensic_analysis.ai_probability * 100).toFixed(0)}%</span>
+                                    <span className="text-foreground">{((forensic_analysis?.ai_probability || 0) * 100).toFixed(0)}%</span>
                                 </div>
                                 <div className="h-1 bg-muted w-full">
                                     <div
                                         className="h-full bg-foreground"
-                                        style={{ width: `${forensic_analysis.ai_probability * 100}%` }}
+                                        style={{ width: `${(forensic_analysis?.ai_probability || 0) * 100}%` }}
                                     />
                                 </div>
                             </div>
 
                             {/* AI Indicators */}
-                            {forensic_analysis.ai_indicators && forensic_analysis.ai_indicators.length > 0 && (
+                            {forensic_analysis?.ai_indicators && forensic_analysis.ai_indicators.length > 0 && (
                                 <div className="pt-4">
                                     <p className="text-xs font-bold text-muted-foreground uppercase mb-2">AI Indicators</p>
                                     <ul className="space-y-2">
@@ -203,7 +271,7 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                                 </div>
                             )}
 
-                            {forensic_analysis.penalties.length > 0 && (
+                            {forensic_analysis?.penalties && forensic_analysis.penalties.length > 0 && (
                                 <div className="pt-6 border-t border-border">
                                     <p className="text-xs font-bold text-muted-foreground uppercase mb-4">Red Flags Detected</p>
                                     <ul className="space-y-3">
@@ -219,116 +287,156 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                         </div>
                     </motion.section>
 
-                    {/* Blockchain Metadata */}
+                    {/* Truth Market */}
+                    {market && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                        >
+                            <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
+                                <span className="w-2 h-2 bg-amber-500 animate-pulse"></span>
+                                <Coins className="w-4 h-4" />
+                                Truth Market
+                            </h3>
+
+                            <div className="space-y-4 text-xs font-mono">
+                                <div className="flex justify-between border-b border-border pb-2">
+                                    <span className="text-muted-foreground uppercase">Status</span>
+                                    <span className="text-emerald-500 uppercase font-bold">
+                                        {market.status === "open" ? "🟢 OPEN" : market.status}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between border-b border-border pb-2">
+                                    <span className="text-muted-foreground uppercase">Total Pool</span>
+                                    <span className="text-foreground">{(market.total_pool || 0).toFixed(2)} ALETH</span>
+                                </div>
+                                <div className="flex justify-between border-b border-border pb-2">
+                                    <span className="text-muted-foreground uppercase">Correct Bets</span>
+                                    <span className="text-emerald-500">{(market.correct_pool || 0).toFixed(2)} ALETH</span>
+                                </div>
+                                <div className="flex justify-between border-b border-border pb-2">
+                                    <span className="text-muted-foreground uppercase">Wrong Bets</span>
+                                    <span className="text-rose-500">{(market.wrong_pool || 0).toFixed(2)} ALETH</span>
+                                </div>
+                                
+                                <div className="pt-4">
+                                    <div className="text-muted-foreground uppercase mb-2">Aletheia Says</div>
+                                    <div className={clsx(
+                                        "text-lg font-bold uppercase",
+                                        market.aletheia_verdict === "TRUE" ? "text-emerald-500" :
+                                        market.aletheia_verdict === "FALSE" ? "text-rose-500" : "text-amber-500"
+                                    )}>
+                                        {market.aletheia_verdict}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                        Confidence: {((market.aletheia_confidence || 0) * 100).toFixed(0)}%
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 border-t border-border">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold uppercase py-2 px-4 text-xs transition-colors">
+                                            Bet Correct
+                                        </button>
+                                        <button className="bg-rose-500 hover:bg-rose-600 text-white font-bold uppercase py-2 px-4 text-xs transition-colors">
+                                            Bet Wrong
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                                        Connect wallet to place bets
+                                    </p>
+                                </div>
+                            </div>
+                        </motion.section>
+                    )}
+
+                    {/* Claim ID & Triage */}
                     <motion.section
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
+                        transition={{ delay: 0.45 }}
                     >
                         <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
-                            <span className="w-2 h-2 bg-green-500 animate-pulse"></span>
-                            On-Chain Data
+                            <span className="w-2 h-2 bg-cyan-500"></span>
+                            Claim Analysis
                         </h3>
-
+                        
                         <div className="space-y-4 text-xs font-mono">
-                            <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-muted-foreground uppercase">Network</span>
-                                <span className="text-foreground">APTOS TESTNET</span>
-                            </div>
-                            <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-muted-foreground uppercase">Type</span>
-                                <span className="text-foreground">{chain_metadata?.claim_type_name || "GENERAL"}</span>
-                            </div>
-                            
-                            {/* Status Badge */}
-                            <div className="flex justify-between border-b border-border pb-2">
-                                <span className="text-muted-foreground uppercase">Status</span>
-                                <span className={clsx(
-                                    "uppercase font-bold",
-                                    aptos_status === "already_on_chain" ? "text-emerald-500" : 
-                                    aptos_status === "submitted" ? "text-blue-500" : "text-amber-500"
-                                )}>
-                                    {aptos_status === "already_on_chain" ? "✓ ON-CHAIN" : 
-                                     aptos_status === "submitted" ? "✓ SUBMITTED" : "PENDING"}
-                                </span>
-                            </div>
-                            
-                            <div>
-                                <span className="text-muted-foreground block mb-2 uppercase">Claim Hash</span>
-                                <code className="block bg-muted p-3 text-muted-foreground break-all text-[10px]">
-                                    {chain_metadata?.claim_hash || "0x..."}
-                                </code>
-                            </div>
-
-                            {/* Show existing on-chain verdict info */}
-                            {on_chain_verdict && (
-                                <div className="border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2">
-                                    <div className="text-[10px] text-emerald-500 uppercase font-bold">Existing On-Chain Verdict</div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-muted-foreground">Verdict:</span>
-                                        <span className="text-foreground font-bold">{on_chain_verdict.verdict}</span>
+                            {triage && (
+                                <>
+                                    <div className="flex justify-between border-b border-border pb-2">
+                                        <span className="text-muted-foreground uppercase">Complexity</span>
+                                        <span className={clsx(
+                                            "uppercase font-bold",
+                                            triage.complexity === "complex" ? "text-rose-500" :
+                                            triage.complexity === "medium" ? "text-amber-500" : "text-emerald-500"
+                                        )}>
+                                            {triage.complexity}
+                                        </span>
                                     </div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-muted-foreground">Confidence:</span>
-                                        <span className="text-foreground">{on_chain_verdict.confidence}%</span>
-                                    </div>
-                                    {on_chain_verdict.shelby_download_url && (
-                                        <a 
-                                            href={on_chain_verdict.shelby_download_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="block text-[10px] text-blue-500 hover:text-blue-400 truncate"
-                                        >
-                                            View Original Report →
-                                        </a>
+                                    
+                                    {triage.domains && triage.domains.length > 0 && (
+                                        <div>
+                                            <span className="text-muted-foreground block mb-2 uppercase">Domains</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {triage.domains.map((domain: string, i: number) => (
+                                                    <span key={i} className="bg-cyan-500/10 text-cyan-500 px-2 py-0.5 text-[10px] uppercase">
+                                                        {domain}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
-                                </div>
-                            )}
 
-                            {aptos_tx && (
-                                <div>
-                                    <span className="text-muted-foreground block mb-2 uppercase">Transaction Hash</span>
-                                    <a 
-                                        href={`https://explorer.aptoslabs.com/txn/${aptos_tx}?network=testnet`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block bg-muted p-3 text-blue-500 hover:text-blue-400 break-all text-[10px] transition-colors"
-                                    >
-                                        {aptos_tx}
-                                    </a>
+                                    {triage.entities && triage.entities.length > 0 && (
+                                        <div>
+                                            <span className="text-muted-foreground block mb-2 uppercase">Entities</span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {triage.entities.slice(0, 5).map((entity: string, i: number) => (
+                                                    <span key={i} className="bg-muted text-foreground px-2 py-0.5 text-[10px]">
+                                                        {entity}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                            
+                            {claim_id && (
+                                <div className="pt-4 border-t border-border">
+                                    <span className="text-muted-foreground block mb-2 uppercase">Claim ID</span>
+                                    <code className="block bg-muted p-3 text-muted-foreground break-all text-[10px]">
+                                        {claim_id}
+                                    </code>
                                 </div>
                             )}
                             
-                            {/* Explorer URL for existing verdicts */}
-                            {aptos_explorer_url && !aptos_tx && (
+                            {market_id && (
                                 <div>
-                                    <span className="text-muted-foreground block mb-2 uppercase">View on Explorer</span>
-                                    <a 
-                                        href={aptos_explorer_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block bg-muted p-3 text-blue-500 hover:text-blue-400 break-all text-[10px] transition-colors"
-                                    >
-                                        Open Aptos Explorer →
-                                    </a>
-                                </div>
-                            )}
-
-                            {download_url && (
-                                <div className="pt-4 border-t border-border">
-                                    <a
-                                        href={download_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground font-bold uppercase py-3 hover:bg-primary/90 transition-colors"
-                                    >
-                                        <FileText className="w-4 h-4" />
-                                        Download AEP Report
-                                    </a>
+                                    <span className="text-muted-foreground block mb-2 uppercase">Market ID</span>
+                                    <code className="block bg-muted p-3 text-muted-foreground break-all text-[10px]">
+                                        {market_id}
+                                    </code>
                                 </div>
                             )}
                         </div>
                     </motion.section>
+
+                    {download_url && (
+                        <div className="pt-4 border-t border-border">
+                            <a
+                                href={download_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center gap-2 w-full bg-primary text-primary-foreground font-bold uppercase py-3 hover:bg-primary/90 transition-colors text-xs"
+                            >
+                                <FileText className="w-4 h-4" />
+                                Download Report
+                            </a>
+                        </div>
+                    )}
 
                 </div>
             </div>

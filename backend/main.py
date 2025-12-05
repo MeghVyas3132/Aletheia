@@ -48,10 +48,7 @@ from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics import renderPDF
 
 # Import agents from organized folder
-from agents import FactChecker, ForensicExpert, TheJudge, ClaimType
-
-# Import blockchain client
-from blockchain import submit_verdict_to_chain, check_verdict_exists, lookup_cached_verdict, CachedVerdict
+from agents import FactChecker, ForensicExpert, TheJudge, ClaimType, ClaimProcessor
 
 # Initialize Rich console
 console = Console()
@@ -867,68 +864,8 @@ def run_truthchain(claim: str):
     print_header()
     print_claim_box(claim)
     
-    # ============ STEP 0: Check Blockchain for Existing Verdict ============
-    console.print()
-    console.print(Panel(
-        "[bold blue]⛓️ Checking Blockchain for Cached Verdict[/bold blue]\n"
-        "[dim]Searching for existing fact-checks on-chain...[/dim]",
-        border_style="blue",
-        padding=(0, 2)
-    ))
-    
-    cached_verdict = None
-    try:
-        with console.status("[bold blue]⛓️ Searching blockchain...", spinner="dots"):
-            cached_verdict = lookup_cached_verdict(claim)
-    except Exception as e:
-        logger.warning(f"Chain lookup failed: {e}")
-        console.print(f"[dim]Chain lookup skipped: {e}[/dim]")
-    
-    if cached_verdict:
-        # Found a cached verdict!
-        if cached_verdict.is_fresh:
-            console.print(Panel(
-                f"[bold green]✅ CACHED VERDICT FOUND (Fresh)[/bold green]\n\n"
-                f"[white]Verdict:[/white] [bold]{cached_verdict.verdict}[/bold]\n"
-                f"[white]Confidence:[/white] {cached_verdict.confidence}%\n"
-                f"[white]Relevance:[/white] {cached_verdict.relevance_score:.0%}\n"
-                f"[white]Claim Hash:[/white] [cyan]{cached_verdict.claim_hash}[/cyan]\n"
-                f"[white]Shelby CID:[/white] [dim]{cached_verdict.shelby_cid}[/dim]\n\n"
-                f"[dim]Skipping agent pipeline - using cached result![/dim]",
-                title="[green]⚡ Cache Hit[/green]",
-                border_style="green",
-                padding=(1, 2)
-            ))
-            
-            elapsed_time = time.time() - start_time
-            console.print(f"\n[dim]⚡ Lookup completed in {elapsed_time:.1f}s[/dim]")
-            logger.info(f"Cache hit! Verdict: {cached_verdict.verdict}, Confidence: {cached_verdict.confidence}")
-            
-            # Return cached result as AEP-like structure
-            return {
-                "cached": True,
-                "claim_hash": cached_verdict.claim_hash,
-                "verdict": {
-                    "decision": cached_verdict.verdict,
-                    "truth_probability": cached_verdict.confidence,
-                    "confidence_level": "CACHED",
-                },
-                "shelby_cid": cached_verdict.shelby_cid,
-                "from_chain": True,
-            }
-        else:
-            console.print(Panel(
-                f"[bold yellow]⚠️ STALE VERDICT FOUND[/bold yellow]\n\n"
-                f"[white]Previous Verdict:[/white] {cached_verdict.verdict}\n"
-                f"[white]Claim Hash:[/white] [dim]{cached_verdict.claim_hash}[/dim]\n\n"
-                f"[dim]Verdict has expired - running fresh verification...[/dim]",
-                title="[yellow]🔄 Re-verification Needed[/yellow]",
-                border_style="yellow",
-                padding=(1, 2)
-            ))
-            logger.info(f"Stale verdict found, re-verifying: {cached_verdict.claim_hash}")
-    else:
-        console.print("[dim]No cached verdict found - running full verification...[/dim]")
+    # Skip blockchain lookup - we've pivoted to SingularityNET
+    console.print("[dim]Starting multi-agent verification...[/dim]")
     
     # ============ PARALLEL: Agent 1 + Agent 2 ============
     console.print()
@@ -1014,31 +951,6 @@ def run_truthchain(claim: str):
         else:
             logger.warning(f"Shelby upload skipped: {shelby_result.get('error', 'Unknown error') if shelby_result else 'Timeout'}")
     
-    # ============ Submit to Aptos Blockchain ============
-    aptos_tx_hash = None
-    chain_metadata = aep.get("chain_metadata", {})
-    verdict_decision = aep.get("verdict", {}).get("decision", "UNCERTAIN")
-    confidence_score = int(aep.get("verdict", {}).get("truth_probability", 50))
-    shelby_cid = shelby_result.get("blob_name", "") if shelby_result and shelby_result.get("success") else ""
-    
-    if chain_metadata.get("claim_hash"):
-        with console.status("[bold blue]⛓️ Submitting to Aptos Blockchain...", spinner="dots"):
-            try:
-                aptos_tx_hash = submit_verdict_to_chain(
-                    chain_metadata=chain_metadata,
-                    shelby_cid=shelby_cid,
-                    verdict=verdict_decision,
-                    confidence=confidence_score,
-                )
-                if aptos_tx_hash:
-                    logger.info(f"Aptos submission successful: {aptos_tx_hash}")
-                    # Update AEP with transaction hash
-                    aep["storage"]["aptos_tx"] = aptos_tx_hash
-                else:
-                    logger.warning("Aptos submission failed - no transaction hash returned")
-            except Exception as e:
-                logger.error(f"Aptos submission error: {e}")
-    
     # ============ Summary ============
     elapsed_time = time.time() - start_time
     
@@ -1067,11 +979,6 @@ def run_truthchain(claim: str):
     if shelby_result and shelby_result.get("success"):
         explorer_url = shelby_result.get("explorer_url", "")
         summary_text += f"[bold]☁️ Shelby:[/bold] [link={explorer_url}]{shelby_result.get('blob_name')}[/link]\n"
-    
-    # Add Aptos blockchain info if submitted
-    if aptos_tx_hash:
-        aptos_explorer = f"https://explorer.aptoslabs.com/txn/{aptos_tx_hash}?network=testnet"
-        summary_text += f"[bold]⛓️ Aptos:[/bold] [link={aptos_explorer}]{aptos_tx_hash[:16]}...[/link]\n"
     
     summary_text += f"[dim]Log File: {log_file}[/dim]"
     

@@ -66,8 +66,26 @@ export default function Home() {
               } else if (data.type === "error") {
                 setError(data.message);
               } else if (data.type === "status") {
-                // Optional: handle generic status updates
-                setLogs(prev => [...prev, { type: "log", agent: "System", message: data.message }]);
+                // V2: Handle phase status updates
+                setLogs(prev => [...prev, { type: "log", agent: data.phase || "System", message: data.message }]);
+              } else if (data.type === "triage") {
+                // V2: Claim triage complete
+                setLogs(prev => [...prev, { type: "log", agent: "Triage", message: `Domains: ${data.data.domains.join(", ")} | Complexity: ${data.data.complexity}` }]);
+              } else if (data.type === "domain_agent") {
+                // V2: Domain agent result
+                setLogs(prev => [...prev, { type: "log", agent: data.domain, message: `Analyzed with ${(data.confidence * 100).toFixed(0)}% confidence` }]);
+              } else if (data.type === "agent") {
+                // V2: Core agent result
+                setLogs(prev => [...prev, { type: "log", agent: data.agent, message: `Verdict: ${data.verdict || "Complete"}` }]);
+              } else if (data.type === "devils_advocate") {
+                // V2: Devil's Advocate challenge
+                setLogs(prev => [...prev, { type: "log", agent: "Devil's Advocate", message: `Attack strength: ${data.attack_strength}` }]);
+              } else if (data.type === "debate_round") {
+                // V2: Council debate round
+                setLogs(prev => [...prev, { type: "log", agent: "Council", message: `Round ${data.round}: ${data.type}` }]);
+              } else if (data.type === "jury_vote") {
+                // V2: Jury vote
+                setLogs(prev => [...prev, { type: "log", agent: `Juror (${data.juror})`, message: `Vote: ${data.vote}` }]);
               }
             } catch (e) {
               console.error("Error parsing stream", e);
@@ -144,7 +162,7 @@ export default function Home() {
         </div>
 
         <footer className="border-t border-border py-6 px-6 text-center text-xs text-muted-foreground font-mono uppercase tracking-widest">
-          Powered by Groq & Tavily
+          Powered by Groq, Tavily & AI Council
         </footer>
       </div>
     </main>
