@@ -237,7 +237,7 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             </div>
                             <div className="flex justify-between border-b border-border pb-2">
                                 <span className="text-muted-foreground uppercase">Type</span>
-                                <span className="text-foreground">{chain_metadata.claim_type_name || "GENERAL"}</span>
+                                <span className="text-foreground">{chain_metadata?.claim_type_name || "GENERAL"}</span>
                             </div>
                             
                             {/* Status Badge */}
@@ -256,7 +256,7 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             <div>
                                 <span className="text-muted-foreground block mb-2 uppercase">Claim Hash</span>
                                 <code className="block bg-muted p-3 text-muted-foreground break-all text-[10px]">
-                                    {chain_metadata.claim_hash || "0x..."}
+                                    {chain_metadata?.claim_hash || "0x..."}
                                 </code>
                             </div>
 

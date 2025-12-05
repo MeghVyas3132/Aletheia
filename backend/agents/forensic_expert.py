@@ -1,5 +1,5 @@
 """
-Agent 2: The Forensic Expert - MoveH
+Agent 2: The Forensic Expert - Aletheia
 
 Analyzes text for manipulation, AI generation, and fraud indicators.
 - Profiler: Linguistic analysis (panic, urgency, typos, grammar)
@@ -14,15 +14,15 @@ from datetime import datetime
 from typing import TypedDict
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.1,
 )
 

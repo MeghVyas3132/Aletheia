@@ -68,7 +68,7 @@ export default function About() {
                                     <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Developer & Partner</p>
                                 </div>
                                 <p className="text-foreground/80 leading-relaxed">
-                                    Partner in crime at Team IcySpicy. Contributing to the vision and execution of MoveH.
+                                    Partner in crime at Team IcySpicy. Contributing to the vision and execution of Aletheia.
                                 </p>
                                 <a
                                     href="https://www.linkedin.com/in/darshith-m-s-241356304/?originalSubdomain=in"

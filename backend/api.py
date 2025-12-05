@@ -13,9 +13,9 @@ from blockchain import submit_verdict_to_chain, lookup_cached_verdict, AptosVerd
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("MoveH-API")
+logger = logging.getLogger("Aletheia-API")
 
-app = FastAPI(title="MoveH API", description="AI Fact-Checking API")
+app = FastAPI(title="Aletheia API", description="AI Fact-Checking API")
 
 # CORS
 app.add_middleware(
@@ -49,7 +49,7 @@ app.mount("/download", StaticFiles(directory=STORAGE_DIR), name="download")
 
 @app.get("/")
 def read_root():
-    return {"status": "online", "service": "MoveH API"}
+    return {"status": "online", "service": "Aletheia API"}
 
 @app.post("/verify_stream")
 async def verify_claim_stream(request: ClaimRequest):

@@ -27,8 +27,8 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MoveH - AI Fact Checker",
-  description: "Verify claims with AI agents and blockchain evidence.",
+  title: "Aletheia - AI Fact Checker",
+  description: "Verify claims with multi-agent AI intelligence.",
 };
 
 export default function RootLayout({

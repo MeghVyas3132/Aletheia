@@ -1,5 +1,5 @@
 """
-Agent 1: The Fact Checker - MoveH (OPTIMIZED)
+Agent 1: The Fact Checker - Aletheia (OPTIMIZED)
 
 Verifies claims by searching authoritative sources and analyzing evidence.
 - Strategist: Generates search queries
@@ -19,15 +19,15 @@ import hashlib
 from typing import TypedDict, Literal
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.3,
 )
 

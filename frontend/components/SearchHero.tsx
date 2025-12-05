@@ -46,8 +46,8 @@ export default function SearchHero({ onSearch, isLoading }: SearchHeroProps) {
         </div>
 
         <p className="text-sm md:text-base text-muted-foreground max-w-xl font-mono uppercase tracking-widest border-l border-border pl-6 py-2">
-          AI-powered fact-checking on the blockchain. <br />
-          Multi-agent intelligence // Aptos Network
+          AI-powered fact-checking with multi-agent intelligence. <br />
+          Powered by Groq LLM // Tavily Search
         </p>
       </motion.div>
 

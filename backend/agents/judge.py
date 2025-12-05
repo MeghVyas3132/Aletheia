@@ -1,11 +1,11 @@
 """
-Agent 3: The Judge - MoveH
+Agent 3: The Judge - Aletheia
 
 The final arbiter that synthesizes evidence from both agents.
 - Synthesizer: Normalizes inputs from Agent 1 and Agent 2
 - Adjudicator: Applies Trust-Weighted Logic
 - Reporter: Generates reasoning and Audit Evidence Package (AEP)
-- Integrates ClaimProcessor for on-chain metadata
+- Integrates ClaimProcessor for metadata
 """
 
 import os
@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import TypedDict
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
@@ -24,9 +24,9 @@ from agents.claim_processor import ClaimProcessor, ClaimType
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.1,
 )
 

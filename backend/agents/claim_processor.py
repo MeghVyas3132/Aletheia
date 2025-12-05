@@ -1,7 +1,7 @@
 """
-Claim Processor - MoveH
+Claim Processor - Aletheia
 
-Processes claims for on-chain storage preparation:
+Processes claims for storage preparation:
 - Generates claim hash (for exact matching)
 - Extracts keywords (for semantic search)
 - Detects claim type (for freshness rules)
@@ -16,14 +16,14 @@ from datetime import datetime, timedelta
 from typing import TypedDict, Literal
 from dotenv import load_dotenv
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.1,
 )
 

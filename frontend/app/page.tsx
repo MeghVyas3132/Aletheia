@@ -144,7 +144,7 @@ export default function Home() {
         </div>
 
         <footer className="border-t border-border py-6 px-6 text-center text-xs text-muted-foreground font-mono uppercase tracking-widest">
-          Powered by Aptos & Gemini 2.5
+          Powered by Groq & Tavily
         </footer>
       </div>
     </main>

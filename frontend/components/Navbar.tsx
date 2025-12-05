@@ -15,14 +15,12 @@ export default function Navbar({ onReset }: NavbarProps) {
                 onClick={onReset}
             >
                 <Link href="/" className="flex items-center gap-2">
-                    <span className="text-foreground">MOVE</span>
-                    <span className="text-muted-foreground">+</span>
-                    <span className="text-foreground">H</span>
+                    <span className="text-foreground">ALETHEIA</span>
                 </Link>
             </div>
             <div className="flex items-center gap-8 font-mono text-xs uppercase tracking-widest">
                 <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">About</Link>
-                <a href="https://github.com/mohitpaddhariya/moveh" target="_blank" className="text-muted-foreground hover:text-foreground transition-colors">
+                <a href="https://github.com/MeghVyas3132/Aletheia" target="_blank" className="text-muted-foreground hover:text-foreground transition-colors">
                     GitHub
                 </a>
                 <ModeToggle />
