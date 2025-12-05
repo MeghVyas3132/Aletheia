@@ -25,66 +25,57 @@ export default function About() {
                                 About Us
                             </h1>
                             <p className="text-muted-foreground text-lg md:text-xl font-mono uppercase tracking-widest">
-                                Team IcySpicy
+                                Team Without You
                             </p>
                         </div>
 
-                        {/* Group Photo */}
-                        <div className="w-full h-[500px] bg-muted border border-border relative overflow-hidden group flex items-center justify-center">
-                            {/* Blurred Background */}
-                            <div
-                                className="absolute inset-0 bg-cover bg-center blur-xl opacity-50 scale-110"
-                                style={{ backgroundImage: "url('/group-photo.jpeg')" }}
-                            />
-                            {/* Main Image */}
-                            <img src="/group-photo.jpeg" alt="Team IcySpicy" className="relative z-10 h-full w-full object-contain shadow-2xl" />
-                        </div>
-
                         {/* Team Members */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                            {/* Mohit */}
-                            <div className="space-y-6 p-8 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {/* Megh Vyas */}
+                            <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
                                 <div>
-                                    <h2 className="text-3xl font-bold font-display uppercase mb-2">Mohit Paddhariya</h2>
-                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Full-Stack & Gen-AI Developer</p>
+                                    <h2 className="text-2xl font-bold font-display uppercase mb-2">Megh Vyas</h2>
+                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">DevOps & Gen-AI Developer</p>
                                 </div>
-                                <p className="text-foreground/80 leading-relaxed">
-                                    Building innovative digital solutions across web, mobile, and AI platforms. Specializing in modern frameworks, cloud technologies, and open source contributions.
-                                </p>
-                                <a
-                                    href="https://www.mohitp.me/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-block text-xs font-bold uppercase tracking-widest border-b border-primary text-primary hover:text-primary/80 transition-colors pb-1"
-                                >
-                                    Visit Portfolio →
-                                </a>
                             </div>
 
-                            {/* Darshith */}
-                            <div className="space-y-6 p-8 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
+                            {/* Anton Raj Singh */}
+                            <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
                                 <div>
-                                    <h2 className="text-3xl font-bold font-display uppercase mb-2">Darshith M S</h2>
-                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Developer & Partner</p>
+                                    <h2 className="text-2xl font-bold font-display uppercase mb-2">Anton Raj Singh</h2>
+                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Full Stack Developer / AI Engineer</p>
                                 </div>
-                                <p className="text-foreground/80 leading-relaxed">
-                                    Partner in crime at Team IcySpicy. Contributing to the vision and execution of Aletheia.
-                                </p>
-                                <a
-                                    href="https://www.linkedin.com/in/darshith-m-s-241356304/?originalSubdomain=in"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-block text-xs font-bold uppercase tracking-widest border-b border-primary text-primary hover:text-primary/80 transition-colors pb-1"
-                                >
-                                    View LinkedIn →
-                                </a>
+                            </div>
+
+                            {/* Mayuresh Singh */}
+                            <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
+                                <div>
+                                    <h2 className="text-2xl font-bold font-display uppercase mb-2">Mayuresh Singh</h2>
+                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Full Stack Developer</p>
+                                </div>
+                            </div>
+
+                            {/* Mohhemad Rayan */}
+                            <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
+                                <div>
+                                    <h2 className="text-2xl font-bold font-display uppercase mb-2">Mohammed Rayan</h2>
+                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Web3 Developer</p>
+                                </div>
+                            </div>
+
+                            {/* Monali Bundela */}
+                            <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
+                                <div>
+                                    <h2 className="text-2xl font-bold font-display uppercase mb-2">Monali Bundela</h2>
+                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Full Stack Developer</p>
+                                </div>
                             </div>
                         </div>
 
                         {/* Footer Note */}
                         <div className="text-center pt-12 border-t border-border">
                             <p className="text-xs text-muted-foreground font-mono uppercase tracking-widest">
-                                Built with ❤️ by Team IcySpicy • PES University, Bangalore
+                                Built with ❤️ by Team Without You • Aexiz Solutions, Bangalore
                             </p>
                         </div>
 
@@ -92,7 +83,7 @@ export default function About() {
                 </div>
 
                 <footer className="border-t border-border py-6 px-6 text-center text-xs text-muted-foreground font-mono uppercase tracking-widest">
-                    Powered by Aptos & Gemini 2.5
+                    Powered by SingularityNET & Groq
                 </footer>
             </div>
         </main>
