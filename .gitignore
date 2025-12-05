@@ -1,0 +1,50 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.*.local
+
+# Logs and reports
+logs/
+reports/
+slides/
+
+# Documentation drafts
+litrature-survay.md
+problme-statement.md
+
+# Package manager
+uv.lock
+
+# Aptos configuration (contains private keys!)
+backend/move_smart_contract/.aptos/
+**/.aptos/
+*.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Next.js / Frontend
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+node_modules/

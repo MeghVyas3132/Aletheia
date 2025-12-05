@@ -1,0 +1,1 @@
+To fund the account and get APT on testnet you must visit https://aptos.dev/network/faucet?address=0xba58879f1b139282d87882e084a7f76a43e65e142ddd6037fbc7c5157798fafe

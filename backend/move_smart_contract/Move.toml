@@ -1,0 +1,12 @@
+[package]
+name = "MoveH"
+version = "1.0.0"
+authors = ["MoveH Team"]
+
+[addresses]
+moveh = "ba58879f1b139282d87882e084a7f76a43e65e142ddd6037fbc7c5157798fafe"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "testnet"
+subdir = "aptos-framework"
