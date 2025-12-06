@@ -120,7 +120,7 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             <span className="w-2 h-2 bg-blue-500"></span>
                             AI Council Analysis
                         </h3>
-                        <div className="text-foreground/80 leading-relaxed text-sm md:text-base border-l border-border pl-6">
+                        <div className="text-foreground/80 leading-relaxed text-xs md:text-sm border-l border-border pl-6">
                             <p>{summary}</p>
                         </div>
                     </motion.section>
@@ -544,7 +544,7 @@ function AnswerResult({ data, onReset }: VerificationResultProps) {
                             Research Answer_
                         </h3>
                         <div className="prose prose-invert prose-sm max-w-none">
-                            <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                            <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed text-xs md:text-sm">
                                 {answer}
                             </div>
                         </div>
@@ -562,7 +562,7 @@ function AnswerResult({ data, onReset }: VerificationResultProps) {
                                 <Scale className="w-4 h-4" />
                                 Additional Nuance_
                             </h3>
-                            <p className="text-foreground/80 text-sm leading-relaxed">
+                            <p className="text-foreground/80 text-xs leading-relaxed">
                                 {nuance}
                             </p>
                         </motion.section>

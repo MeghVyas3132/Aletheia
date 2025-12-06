@@ -14,6 +14,8 @@ import {
   Shield,
   User,
   ExternalLink,
+  Ban,
+  CheckCircle2,
 } from "lucide-react";
 
 interface Challenge {
@@ -30,6 +32,18 @@ interface Challenge {
   created_at: string;
 }
 
+interface EligibilityResult {
+  eligible: boolean;
+  reason: string;
+  warning?: string;
+  requirements?: {
+    min_wallet_age_days: number;
+    min_sol_balance: number;
+    min_transaction_count: number;
+    max_votes_per_hour: number;
+  };
+}
+
 interface VotingPanelProps {
   challenge: Challenge;
   onVote: (challengeId: string, position: "ai" | "challenger", reasoning: string) => Promise<void>;
@@ -37,6 +51,8 @@ interface VotingPanelProps {
   hasVoted?: boolean;
   userVote?: "ai" | "challenger";
 }
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function VotingPanel({
   challenge,
@@ -50,6 +66,43 @@ export default function VotingPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState("");
+  
+  // Eligibility state
+  const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
+  const [isCheckingEligibility, setIsCheckingEligibility] = useState(false);
+
+  // Check eligibility when wallet is provided
+  useEffect(() => {
+    const checkEligibility = async () => {
+      if (!userWallet || hasVoted) {
+        return;
+      }
+      
+      setIsCheckingEligibility(true);
+      
+      try {
+        const response = await fetch(
+          `${API_URL}/voter/${userWallet}/eligibility?challenge_id=${challenge.challenge_id}`
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setEligibility(data);
+        } else {
+          // Graceful degradation - allow voting if check fails
+          setEligibility({ eligible: true, reason: "Unable to verify eligibility" });
+        }
+      } catch (err) {
+        console.error("Eligibility check failed:", err);
+        // Graceful degradation
+        setEligibility({ eligible: true, reason: "Unable to verify eligibility" });
+      } finally {
+        setIsCheckingEligibility(false);
+      }
+    };
+    
+    checkEligibility();
+  }, [userWallet, challenge.challenge_id, hasVoted]);
 
   // Calculate time remaining
   useEffect(() => {
@@ -86,6 +139,12 @@ export default function VotingPanel({
       setError(`Please provide reasoning (${reasoning.length}/50 characters minimum)`);
       return;
     }
+    
+    // Check eligibility before submitting
+    if (eligibility && !eligibility.eligible) {
+      setError(`Cannot vote: ${eligibility.reason}`);
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -100,6 +159,7 @@ export default function VotingPanel({
   };
 
   const isVotingActive = challenge.status === "voting";
+  const canVote = eligibility?.eligible !== false;
 
   return (
     <motion.div
@@ -221,15 +281,53 @@ export default function VotingPanel({
       {/* Voting Form */}
       {!hasVoted && isVotingActive && (
         <div className="space-y-4">
+          {/* Eligibility Check */}
+          {isCheckingEligibility && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+              <span className="text-sm text-blue-400">Checking voting eligibility...</span>
+            </div>
+          )}
+          
+          {/* Eligibility Warning */}
+          {eligibility && !eligibility.eligible && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Ban className="w-5 h-5 text-red-400" />
+                <span className="font-medium text-red-400">Cannot Vote</span>
+              </div>
+              <p className="text-sm text-gray-300 mb-2">{eligibility.reason}</p>
+              {eligibility.requirements && (
+                <div className="text-xs text-gray-500 space-y-1">
+                  <p>Requirements:</p>
+                  <ul className="list-disc list-inside">
+                    <li>Wallet age: at least {eligibility.requirements.min_wallet_age_days} days</li>
+                    <li>SOL balance: at least {eligibility.requirements.min_sol_balance} SOL</li>
+                    <li>Transactions: at least {eligibility.requirements.min_transaction_count}</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Eligibility Confirmed */}
+          {eligibility?.eligible && (
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              <span className="text-sm text-green-400">You are eligible to vote</span>
+            </div>
+          )}
+          
           {/* Position Selection */}
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => setSelectedPosition("ai")}
+              disabled={!canVote}
               className={`p-4 rounded-xl border-2 transition-all ${
                 selectedPosition === "ai"
                   ? "border-green-500 bg-green-500/20"
                   : "border-gray-600 bg-black/30 hover:border-gray-500"
-              }`}
+              } ${!canVote ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <div className="flex flex-col items-center gap-2">
                 <Shield className={`w-8 h-8 ${selectedPosition === "ai" ? "text-green-400" : "text-gray-400"}`} />
@@ -243,11 +341,12 @@ export default function VotingPanel({
             </button>
             <button
               onClick={() => setSelectedPosition("challenger")}
+              disabled={!canVote}
               className={`p-4 rounded-xl border-2 transition-all ${
                 selectedPosition === "challenger"
                   ? "border-red-500 bg-red-500/20"
                   : "border-gray-600 bg-black/30 hover:border-gray-500"
-              }`}
+              } ${!canVote ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <div className="flex flex-col items-center gap-2">
                 <User className={`w-8 h-8 ${selectedPosition === "challenger" ? "text-red-400" : "text-gray-400"}`} />
@@ -296,13 +395,18 @@ export default function VotingPanel({
           {/* Submit Button */}
           <button
             onClick={handleSubmitVote}
-            disabled={isSubmitting || !selectedPosition}
+            disabled={isSubmitting || !selectedPosition || !canVote}
             className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white rounded-xl font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Submitting Vote...
+              </>
+            ) : !canVote ? (
+              <>
+                <Ban className="w-5 h-5" />
+                Voting Not Available
               </>
             ) : (
               <>

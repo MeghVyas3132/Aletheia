@@ -309,3 +309,25 @@ class ForensicExpert:
         }
         async for event in self.graph.astream(initial_state):
             yield event
+    
+    def analyze_text(self, text: str) -> dict:
+        """Synchronous text analysis for non-streaming endpoint."""
+        initial_state: ForensicState = {
+            "raw_input": text,
+            "linguistic_analysis": {},
+            "ai_detection": {},
+            "integrity_score": 0.0,
+            "penalties_applied": [],
+            "forensic_log": {}
+        }
+        
+        # Run the graph synchronously
+        result = self.graph.invoke(initial_state)
+        
+        return {
+            "integrity_score": result.get("integrity_score", 0.5),
+            "linguistic_analysis": result.get("linguistic_analysis", {}),
+            "ai_detection": result.get("ai_detection", {}),
+            "penalties_applied": result.get("penalties_applied", []),
+            "forensic_log": result.get("forensic_log", {})
+        }

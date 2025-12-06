@@ -176,16 +176,16 @@ class Defender:
         
         sources = supporting_evidence.get('sources', [])
         sources_text = "\n".join([
-            f"- {s.get('title', 'N/A')}: {s.get('content', '')[:100]}"
+            f"- {s.get('title', 'N/A')}: {s.get('content', '')[:500]}"
             for s in sources[:5]
         ]) if sources else "Multiple sources reviewed."
         
         context = f"""You are the DEFENDER in a fact-checking tribunal.
-Your role: Argue that this claim is TRUE or LIKELY TRUE.
+Your role: Argue that this claim is TRUE or LIKELY TRUE based on the evidence.
 
 CLAIM: "{claim}"
 
-SUPPORTING EVIDENCE:
+SUPPORTING EVIDENCE FROM SEARCH RESULTS:
 {sources_text}
 
 Fact-checker preliminary verdict: {supporting_evidence.get('verdict', 'N/A')}
@@ -235,16 +235,27 @@ class Juror:
     async def vote(
         self,
         claim: str,
-        debate_transcript: List[DebateRound]
+        debate_transcript: List[DebateRound],
+        supporting_evidence: Dict[str, Any] = None
     ) -> JurorVote:
-        """Cast vote after reviewing the debate."""
+        """Cast vote after reviewing the debate and evidence."""
         
         # Compile debate summary
         transcript_text = ""
         for round in debate_transcript:
             transcript_text += f"\n--- ROUND {round.round_num}: {round.round_type.upper()} ---\n"
-            transcript_text += f"PROSECUTOR: {round.prosecutor_argument.argument[:300]}...\n"
-            transcript_text += f"DEFENDER: {round.defender_argument.argument[:300]}...\n"
+            transcript_text += f"PROSECUTOR: {round.prosecutor_argument.argument[:500]}...\n"
+            transcript_text += f"DEFENDER: {round.defender_argument.argument[:500]}...\n"
+        
+        # Include actual evidence summary
+        evidence_text = ""
+        if supporting_evidence:
+            sources = supporting_evidence.get('sources', [])
+            if sources:
+                evidence_text = "\n\nDIRECT EVIDENCE FROM SEARCH RESULTS:\n"
+                for s in sources[:3]:
+                    evidence_text += f"- Source: {s.get('title', 'N/A')}\n"
+                    evidence_text += f"  Content: {s.get('content', '')[:400]}\n"
         
         prompt = f"""You are {self.persona['name']}, a juror in a fact-checking tribunal.
 Your persona: {self.persona['description']}
@@ -253,17 +264,20 @@ CLAIM BEING JUDGED: "{claim}"
 
 DEBATE TRANSCRIPT:
 {transcript_text}
+{evidence_text}
 
-Based on your persona and the arguments presented, cast your vote:
-- TRUE: The claim is accurate
-- FALSE: The claim is inaccurate  
+Based on your persona, the arguments presented, AND the direct evidence, cast your vote:
+- TRUE: The claim is accurate based on the evidence
+- FALSE: The claim is inaccurate or contradicted by evidence
 - UNCERTAIN: Cannot determine with confidence
+
+IMPORTANT: Carefully read the direct evidence. If the evidence confirms the claim, vote TRUE.
 
 Respond in JSON:
 {{
     "vote": "TRUE" or "FALSE" or "UNCERTAIN",
     "confidence": <0.0-1.0>,
-    "reasoning": "2-3 sentence explanation of your decision"
+    "reasoning": "2-3 sentence explanation of your decision based on the evidence"
 }}"""
 
         response = self.llm.invoke([
@@ -366,10 +380,10 @@ class AICouncil:
             prosecutor_last = prosecutor_arg.argument
             defender_last = defender_arg.argument
         
-        # Jury votes
+        # Jury votes - now with access to supporting evidence
         import asyncio
         votes = await asyncio.gather(*[
-            juror.vote(claim, debate_transcript)
+            juror.vote(claim, debate_transcript, supporting_evidence)
             for juror in self.jurors
         ])
         

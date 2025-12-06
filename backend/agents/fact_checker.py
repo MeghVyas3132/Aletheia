@@ -101,19 +101,70 @@ Return ONLY the 3 queries, one per line, no numbering or bullets."""
 
 
 def executor_node(state: FactCheckerState) -> FactCheckerState:
-    """Fetch search results for each query using ASYNC PARALLEL execution."""
+    """Fetch search results for each query using synchronous Tavily client."""
     queries = state["search_queries"]
     tavily_api_key = os.getenv("TAVILY_API_KEY")
     
     if tavily_api_key:
         try:
-            results = asyncio.run(_parallel_tavily_search(queries, tavily_api_key))
-        except Exception:
+            results = _sync_tavily_search(queries, tavily_api_key)
+        except Exception as e:
+            print(f"Tavily search error: {e}")
             results = _simulate_search(queries)
     else:
         results = _simulate_search(queries)
     
     return {**state, "search_results": results}
+
+
+def _sync_tavily_search(queries: list[str], api_key: str) -> list[dict]:
+    """Execute Tavily searches synchronously."""
+    from tavily import TavilyClient
+    
+    client = TavilyClient(api_key=api_key)
+    results = []
+    
+    for query in queries:
+        # Check cache first
+        cache_key = _cache_key(query)
+        if cache_key in _search_cache:
+            results.append(_search_cache[cache_key])
+            continue
+        
+        try:
+            search_response = client.search(
+                query=query,
+                search_depth="basic",
+                max_results=5,
+                include_raw_content=False,
+                topic="news"  # Prioritize recent news
+            )
+            
+            formatted_results = []
+            for r in search_response.get("results", []):
+                formatted_results.append({
+                    "title": r.get("title", ""),
+                    "url": r.get("url", ""),
+                    "content": r.get("content", "")[:1000],
+                    "score": r.get("score", 0),
+                    "published_date": r.get("published_date", "")
+                })
+            
+            result = {
+                "query": query,
+                "results": formatted_results,
+                "status": "success",
+                "answer": search_response.get("answer", "")
+            }
+            
+            # Cache the result
+            _search_cache[cache_key] = result
+            results.append(result)
+            
+        except Exception as e:
+            results.append({"query": query, "results": [], "status": f"error: {str(e)}"})
+    
+    return results
 
 
 async def _parallel_tavily_search(queries: list[str], api_key: str) -> list[dict]:
@@ -331,6 +382,52 @@ class FactChecker:
         }
         async for event in self.graph.astream(initial_state):
             yield event
+    
+    def verify_claim(self, claim: str) -> dict:
+        """
+        Synchronous verification of a claim.
+        Returns the final state with search results and analysis.
+        """
+        initial_state: FactCheckerState = {
+            "claim": claim,
+            "search_queries": [],
+            "search_results": [],
+            "analysis": "",
+            "is_sufficient": False,
+            "iteration_count": 0,
+            "evidence_dossier": {}
+        }
+        
+        # Run the graph synchronously
+        result = self.graph.invoke(initial_state)
+        
+        # Extract relevant data from result
+        return {
+            "claim": claim,
+            "search_queries": result.get("search_queries", []),
+            "search_results": result.get("search_results", []),
+            "analysis": result.get("analysis", ""),
+            "is_sufficient": result.get("is_sufficient", False),
+            "preliminary_verdict": self._extract_verdict(result.get("analysis", "")),
+            "evidence_dossier": result.get("evidence_dossier", {})
+        }
+    
+    def _extract_verdict(self, analysis: str) -> str:
+        """Extract a preliminary verdict from the analysis text."""
+        if not analysis:
+            return "UNVERIFIED"
+        
+        analysis_lower = analysis.lower()
+        
+        # Look for explicit verdicts in the analysis
+        if any(word in analysis_lower for word in ["confirmed", "verified", "true", "accurate", "correct"]):
+            return "LIKELY TRUE"
+        elif any(word in analysis_lower for word in ["false", "debunked", "incorrect", "misleading", "fake"]):
+            return "LIKELY FALSE"
+        elif any(word in analysis_lower for word in ["insufficient", "unclear", "cannot determine", "mixed"]):
+            return "UNCERTAIN"
+        else:
+            return "UNVERIFIED"
     
     @staticmethod
     def clear_cache():

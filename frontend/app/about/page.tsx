@@ -21,7 +21,7 @@ export default function About() {
                     >
                         {/* Header */}
                         <div className="text-center space-y-4">
-                            <h1 className="text-6xl md:text-8xl font-bold font-display uppercase tracking-tighter">
+                            <h1 className="text-6xl md:text-5xl font-bold font-display uppercase tracking-tighter">
                                 About Us
                             </h1>
                             <p className="text-muted-foreground text-lg md:text-xl font-mono uppercase tracking-widest">

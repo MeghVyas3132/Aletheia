@@ -30,6 +30,8 @@ from typing import Optional
 from datetime import datetime
 from functools import wraps
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Query, Header, Request, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,6 +58,18 @@ from market import (
 from dow import (
     DOWManager, get_dow_manager,
     Challenge, ChallengeStatus, Vote as DOWVote
+)
+
+# Anti-sybil protection
+from dow.anti_sybil import get_anti_sybil_checker
+
+# Background scheduler
+from scheduler import setup_scheduler, shutdown_scheduler
+
+# Verification history
+from verification_history import (
+    get_history_db, create_verification_record,
+    VerificationRecord, VerificationHistoryDB
 )
 
 # Setup logging
@@ -157,12 +171,33 @@ def verify_admin_key(x_admin_key: str = Header(None)) -> bool:
     return True
 
 
+# ==================== LIFESPAN (Startup/Shutdown) ====================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    logger.info("Starting Aletheia API V2...")
+    
+    # Start background scheduler
+    await setup_scheduler()
+    logger.info("Background scheduler started")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down Aletheia API V2...")
+    await shutdown_scheduler()
+    logger.info("Background scheduler stopped")
+
+
 # ==================== FASTAPI APP ====================
 
 app = FastAPI(
     title="Aletheia API V2",
     description="AI-Powered Fact-Checking with Truth Market",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # CORS - Restricted to allowed origins
@@ -258,14 +293,108 @@ def read_root():
             "Multi-agent fact-checking",
             "Domain-specific agents",
             "AI Council debate",
-            "Truth Market betting"
+            "Truth Market betting",
+            "Decentralized Oracle of Wisdom (DOW)",
+            "Anti-sybil protection"
         ]
     }
 
 
 @app.get("/health")
 def health_check():
+    """Basic health check endpoint."""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+@app.get("/health/detailed")
+async def detailed_health_check():
+    """
+    Detailed health check with component status.
+    Use this for monitoring and debugging.
+    """
+    components = {}
+    overall_healthy = True
+    
+    # Check LLM (Groq) connectivity
+    try:
+        # Quick test that doesn't use tokens
+        from langchain_groq import ChatGroq
+        llm = ChatGroq(model="llama-3.3-70b-versatile")
+        components["llm_groq"] = {"status": "configured", "model": "llama-3.3-70b-versatile"}
+    except Exception as e:
+        components["llm_groq"] = {"status": "error", "error": str(e)}
+        overall_healthy = False
+    
+    # Check DOW manager
+    try:
+        treasury = dow_manager.get_treasury_stats()
+        active_challenges = dow_manager.get_active_challenges()
+        components["dow"] = {
+            "status": "healthy",
+            "treasury_balance": treasury.get("balance", 0),
+            "active_challenges": len(active_challenges)
+        }
+    except Exception as e:
+        components["dow"] = {"status": "error", "error": str(e)}
+        overall_healthy = False
+    
+    # Check Market manager
+    try:
+        from market import get_market_manager
+        mm = get_market_manager()
+        open_markets = len(mm.get_open_markets())
+        components["market"] = {
+            "status": "healthy",
+            "open_markets": open_markets
+        }
+    except Exception as e:
+        components["market"] = {"status": "error", "error": str(e)}
+    
+    # Check Anti-sybil
+    try:
+        components["anti_sybil"] = {
+            "status": "healthy",
+            "demo_mode": anti_sybil_checker.config.demo_mode,
+            "strict_mode": anti_sybil_checker.config.strict_mode
+        }
+    except Exception as e:
+        components["anti_sybil"] = {"status": "error", "error": str(e)}
+    
+    # Check scheduler
+    try:
+        from scheduler import get_scheduler
+        scheduler = get_scheduler()
+        components["scheduler"] = {
+            "status": "healthy" if scheduler.running else "stopped",
+            "tasks": list(scheduler.tasks.keys())
+        }
+    except Exception as e:
+        components["scheduler"] = {"status": "error", "error": str(e)}
+    
+    return {
+        "status": "healthy" if overall_healthy else "degraded",
+        "timestamp": datetime.now().isoformat(),
+        "components": components
+    }
+
+
+@app.get("/health/agents")
+def agents_health_check():
+    """Check status of AI agents."""
+    agents_status = {
+        "fact_checker": "ready" if fact_checker else "not_initialized",
+        "forensic_expert": "ready" if forensic_expert else "not_initialized",
+        "devils_advocate": "ready" if devils_advocate else "not_initialized",
+        "ai_council": "ready" if ai_council else "not_initialized",
+        "judge": "ready" if judge else "not_initialized",
+        "fast_triage": "ready" if fast_triage else "not_initialized",
+        "question_answerer": "ready" if question_answerer else "not_initialized"
+    }
+    
+    return {
+        "status": "healthy" if all(v == "ready" for v in agents_status.values()) else "degraded",
+        "agents": agents_status
+    }
 
 
 # ==================== VERIFICATION ENDPOINTS ====================
@@ -476,6 +605,26 @@ async def verify_claim_stream(request: ClaimRequest, req: Request):
                 "processing_time": f"{processing_time:.1f}s"
             }
             
+            # Save to verification history
+            try:
+                verification_record = create_verification_record(
+                    claim=claim,
+                    verdict=final_verdict,
+                    confidence=council_verdict.confidence,
+                    domain=triage_result.domains[0].value if triage_result.domains else "general",
+                    complexity=triage_result.complexity.value,
+                    council_vote=council_verdict.vote_breakdown,
+                    sources=[s.get("url", "") for s in a1_result.get("search_results", [])[:5]],
+                    explanation=council_verdict.summary,
+                    nuance=getattr(council_verdict, 'nuance', ''),
+                    verification_time=processing_time,
+                    user_ip=client_ip
+                )
+                history_db.save(verification_record)
+                complete_result["verification_id"] = verification_record.id
+            except Exception as hist_error:
+                logger.warning(f"Failed to save verification history: {hist_error}")
+            
             # Create market for this claim
             category = triage_result.domains[0].value if triage_result.domains else "general"
             market = market_manager.create_market(
@@ -533,24 +682,35 @@ async def verify_claim(request: ClaimRequest, req: Request):
         a1_result = fact_checker.verify_claim(claim)
         a2_result = forensic_expert.analyze_text(claim)
         
-        # Combine evidence
+        # Flatten search results for AI Council
+        # a1_result["search_results"] is a list of query results: [{"query": ..., "results": [...]}]
+        # We need to extract the actual source objects
+        flat_sources = []
+        for query_result in a1_result.get("search_results", []):
+            if isinstance(query_result, dict):
+                for source in query_result.get("results", []):
+                    flat_sources.append(source)
+        
+        # Debug log
+        logger.info(f"Fact checker found {len(flat_sources)} sources for claim: {claim[:50]}...")
+        
+        # Combine with domain evidence
         domain_evidence = []
         for dr in domain_results:
             domain_evidence.extend(dr.evidence)
         
-        if domain_evidence:
-            a1_result["search_results"] = a1_result.get("search_results", []) + domain_evidence
+        all_sources = flat_sources + domain_evidence
         
         # Devil's Advocate
         counter_evidence = await devils_advocate.challenge(
             claim=claim,
-            supporting_evidence=a1_result.get("search_results", []),
+            supporting_evidence=all_sources,
             entities=triage_result.entities
         )
         
         # AI Council
         supporting_evidence = {
-            "sources": a1_result.get("search_results", []),
+            "sources": all_sources,
             "verdict": a1_result.get("preliminary_verdict", "UNVERIFIED"),
             "confidence": 0.7
         }
@@ -850,8 +1010,12 @@ def get_challenges_by_wallet(wallet_address: str):
 
 
 # Voting endpoints
+# Anti-sybil checker instance
+anti_sybil_checker = get_anti_sybil_checker()
+
+
 @app.post("/challenge/{challenge_id}/vote")
-def cast_vote(challenge_id: str, request: VoteRequest):
+async def cast_vote(challenge_id: str, request: VoteRequest):
     """
     Cast a vote on a challenge.
     
@@ -859,7 +1023,30 @@ def cast_vote(challenge_id: str, request: VoteRequest):
     - voter_wallet: Wallet address of voter
     - position: "ai" (AI is correct) or "challenger" (challenger is correct)
     - reasoning: Optional explanation for vote
+    
+    Anti-sybil protections:
+    - Wallet age check (min 7 days)
+    - SOL balance check (min 0.1 SOL)
+    - Transaction history check (min 5 transactions)
+    - Rate limiting (max 10 votes/hour)
     """
+    # Check anti-sybil eligibility
+    try:
+        is_eligible, reason = await anti_sybil_checker.is_eligible_to_vote(
+            wallet_address=request.voter_wallet,
+            challenge_id=challenge_id
+        )
+        
+        if not is_eligible:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Vote rejected: {reason}"
+            )
+    except Exception as e:
+        # Log error but allow vote if anti-sybil check fails
+        # (graceful degradation - don't block voting if Solana RPC is down)
+        logger.warning(f"Anti-sybil check failed for {request.voter_wallet}: {e}")
+    
     success, message, vote = dow_manager.cast_vote(
         challenge_id=challenge_id,
         voter_wallet=request.voter_wallet,
@@ -895,6 +1082,41 @@ def get_challenge_votes(challenge_id: str):
         "challenger_percentage": challenge.challenger_vote_percentage,
         "votes": [v.to_dict() for v in votes]
     }
+
+
+@app.get("/voter/{wallet_address}/eligibility")
+async def check_vote_eligibility(wallet_address: str, challenge_id: Optional[str] = None):
+    """
+    Check if a wallet is eligible to vote.
+    
+    Returns eligibility status and reasons if not eligible.
+    Call this before allowing users to vote in the UI.
+    """
+    try:
+        is_eligible, reason = await anti_sybil_checker.is_eligible_to_vote(
+            wallet_address=wallet_address,
+            challenge_id=challenge_id
+        )
+        
+        return {
+            "wallet": wallet_address,
+            "eligible": is_eligible,
+            "reason": reason if not is_eligible else "Wallet meets all requirements",
+            "requirements": {
+                "min_wallet_age_days": anti_sybil_checker.config.min_wallet_age_days,
+                "min_sol_balance": anti_sybil_checker.config.min_sol_balance,
+                "min_transaction_count": anti_sybil_checker.config.min_transaction_count,
+                "max_votes_per_hour": anti_sybil_checker.config.max_votes_per_hour
+            }
+        }
+    except Exception as e:
+        logger.error(f"Eligibility check failed: {e}")
+        return {
+            "wallet": wallet_address,
+            "eligible": True,  # Graceful degradation
+            "reason": "Unable to verify - allowing vote",
+            "warning": "Anti-sybil check unavailable"
+        }
 
 
 # Resolution endpoints
@@ -1030,5 +1252,91 @@ def check_verdict_challengeable(verdict_id: str):
         "challengeable": can_challenge,
         "reason": reason,
         "verdict_info": verdict_info
+    }
+
+
+# ==================== VERIFICATION HISTORY ====================
+
+history_db = get_history_db()
+
+
+@app.get("/history/recent")
+def get_recent_verifications(limit: int = Query(default=20, le=100)):
+    """Get recent public verifications."""
+    verifications = history_db.get_recent(limit)
+    return {
+        "count": len(verifications),
+        "verifications": [v.to_dict() for v in verifications]
+    }
+
+
+@app.get("/history/search")
+def search_verifications(
+    q: str = Query(..., min_length=3, description="Search query"),
+    verdict: Optional[str] = Query(None, pattern="^(TRUE|FALSE|UNCERTAIN)$"),
+    limit: int = Query(default=20, le=100)
+):
+    """Search past verifications by claim text."""
+    verifications = history_db.search(query=q, verdict=verdict, limit=limit)
+    return {
+        "query": q,
+        "verdict_filter": verdict,
+        "count": len(verifications),
+        "verifications": [v.to_dict() for v in verifications]
+    }
+
+
+@app.get("/history/{verification_id}")
+def get_verification(verification_id: str):
+    """Get a specific verification by ID."""
+    record = history_db.get(verification_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Verification not found")
+    
+    return {"verification": record.to_dict()}
+
+
+@app.get("/history/wallet/{wallet_address}")
+def get_wallet_history(
+    wallet_address: str,
+    limit: int = Query(default=50, le=100)
+):
+    """Get verification history for a wallet."""
+    verifications = history_db.get_by_wallet(wallet_address, limit)
+    return {
+        "wallet": wallet_address,
+        "count": len(verifications),
+        "verifications": [v.to_dict() for v in verifications]
+    }
+
+
+@app.get("/history/stats")
+def get_verification_stats():
+    """Get verification statistics and analytics."""
+    stats = history_db.get_stats()
+    return {"stats": stats}
+
+
+@app.get("/history/similar")
+def find_similar_verification(
+    claim: str = Query(..., min_length=10),
+    hours: int = Query(default=24, le=168)
+):
+    """
+    Find if a similar claim was verified recently.
+    Useful for caching and avoiding duplicate verifications.
+    """
+    similar = history_db.find_similar(claim, threshold_hours=hours)
+    
+    if similar:
+        return {
+            "found": True,
+            "verification": similar.to_dict(),
+            "message": f"Similar claim was verified {similar.created_at}"
+        }
+    
+    return {
+        "found": False,
+        "message": f"No similar verification found in the last {hours} hours"
     }
 
