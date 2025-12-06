@@ -38,6 +38,12 @@ from agents.ai_council import (
 # Report generation
 from agents.shelby import Shelby as ReportGenerator
 
+# Question Answerer (for questions, not claims)
+from agents.question_answerer import QuestionAnswerer, AnswerResult, get_question_answerer
+
+# Fast triage with input type detection
+from agents.claim_triage_fast import InputType
+
 __all__ = [
     # Core agents
     "FactChecker",
@@ -52,6 +58,7 @@ __all__ = [
     "ClaimTriageAgent",
     "TriageResult",
     "Complexity",
+    "InputType",
     
     # V2: Domain agents
     "DomainAgentRegistry",
@@ -74,6 +81,11 @@ __all__ = [
     "Vote",
     "DebateRound",
     "JurorVote",
+    
+    # V2: Question Answerer
+    "QuestionAnswerer",
+    "AnswerResult",
+    "get_question_answerer",
     
     # Report generation
     "ReportGenerator",

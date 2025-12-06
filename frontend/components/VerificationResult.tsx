@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle, XCircle, AlertTriangle, Shield, Brain, FileText, Activity, Clock, Link as LinkIcon, Users, Scale, Target, Coins } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, Shield, Brain, FileText, Activity, Clock, Link as LinkIcon, Users, Scale, Target, Coins, MessageCircle, HelpCircle } from "lucide-react";
 import clsx from "clsx";
 
 interface VerificationResultProps {
@@ -10,6 +10,14 @@ interface VerificationResultProps {
 }
 
 export default function VerificationResult({ data, onReset }: VerificationResultProps) {
+    // Check if this is an ANSWER (question) vs VERIFICATION (claim)
+    const isAnswer = data.is_answer || data.type === "answer" || data.input_type === "question" || data.input_type === "comparison";
+    
+    if (isAnswer) {
+        return <AnswerResult data={data} onReset={onReset} />;
+    }
+    
+    // Original verification result rendering
     const { 
         claim,
         verdict, 
@@ -438,6 +446,201 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                         </div>
                     )}
 
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ==================== ANSWER RESULT COMPONENT (for questions) ====================
+
+function AnswerResult({ data, onReset }: VerificationResultProps) {
+    const {
+        question,
+        answer,
+        summary,
+        nuance,
+        is_contentious,
+        sources,
+        confidence,
+        domains,
+        processing_time
+    } = data;
+
+    return (
+        <div className="w-full max-w-6xl mx-auto pb-20 px-4 pt-8 font-mono">
+            {/* Header */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-12"
+            >
+                <div className="flex justify-between items-center mb-8">
+                    <button
+                        onClick={onReset}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2 uppercase tracking-widest"
+                    >
+                        ← Ask another question
+                    </button>
+                    {processing_time && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
+                            <Clock className="w-3 h-3" />
+                            Answered in {processing_time}s
+                        </div>
+                    )}
+                </div>
+
+                <div className={clsx(
+                    "border-l-4 p-8 bg-card/30 backdrop-blur-sm",
+                    is_contentious ? "border-amber-500/50" : "border-blue-500/50"
+                )}>
+                    {/* Original Question */}
+                    <div className="mb-6 pb-6 border-b border-border/50">
+                        <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                            <HelpCircle className="w-3 h-3" />
+                            Your Question_
+                        </div>
+                        <p className="text-foreground/90 text-sm md:text-base leading-relaxed italic">&ldquo;{question}&rdquo;</p>
+                    </div>
+                    
+                    {/* Contentious Warning */}
+                    {is_contentious && (
+                        <div className="mb-6 p-4 border border-amber-500/30 bg-amber-500/5">
+                            <div className="flex items-center gap-2 text-amber-500 text-xs uppercase tracking-widest mb-2">
+                                <AlertTriangle className="w-4 h-4" />
+                                Contentious Topic
+                            </div>
+                            <p className="text-muted-foreground text-sm">
+                                This topic is disputed. Multiple perspectives are presented below.
+                            </p>
+                        </div>
+                    )}
+                    
+                    {/* Answer Header */}
+                    <div className="flex items-center gap-3 mb-4">
+                        <MessageCircle className="w-6 h-6 text-blue-500" />
+                        <h2 className="text-2xl font-bold font-display uppercase">Answer</h2>
+                        {confidence && (
+                            <span className="text-xs text-muted-foreground uppercase">
+                                ({Math.round(confidence * 100)}% confidence)
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </motion.div>
+
+            {/* Main Answer Content */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-8">
+                    {/* Full Answer */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="border border-border bg-card/30 p-6"
+                    >
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
+                            <Brain className="w-4 h-4" />
+                            Research Answer_
+                        </h3>
+                        <div className="prose prose-invert prose-sm max-w-none">
+                            <div className="text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                                {answer}
+                            </div>
+                        </div>
+                    </motion.section>
+
+                    {/* Nuance (if applicable) */}
+                    {nuance && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="border border-amber-500/30 bg-amber-500/5 p-6"
+                        >
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-4 flex items-center gap-2">
+                                <Scale className="w-4 h-4" />
+                                Additional Nuance_
+                            </h3>
+                            <p className="text-foreground/80 text-sm leading-relaxed">
+                                {nuance}
+                            </p>
+                        </motion.section>
+                    )}
+                </div>
+
+                {/* Sidebar */}
+                <div className="space-y-6">
+                    {/* Domains */}
+                    {domains && domains.length > 0 && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="border border-border bg-card/30 p-4"
+                        >
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
+                                Topics_
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                                {domains.map((domain: string, i: number) => (
+                                    <span key={i} className="px-2 py-1 bg-muted text-muted-foreground text-xs uppercase">
+                                        {domain}
+                                    </span>
+                                ))}
+                            </div>
+                        </motion.section>
+                    )}
+
+                    {/* Sources */}
+                    {sources && sources.length > 0 && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="border border-border bg-card/30 p-4"
+                        >
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                                <LinkIcon className="w-3 h-3" />
+                                Sources_
+                            </h3>
+                            <ul className="space-y-2">
+                                {sources.map((source: any, i: number) => (
+                                    <li key={i} className="text-xs">
+                                        {source.url ? (
+                                            <a
+                                                href={source.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-400 hover:text-blue-300 transition-colors block truncate"
+                                            >
+                                                {source.title || source.url}
+                                            </a>
+                                        ) : (
+                                            <span className="text-muted-foreground">{source.title}</span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </motion.section>
+                    )}
+
+                    {/* Summary Box */}
+                    {summary && (
+                        <motion.section
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.4 }}
+                            className="border border-blue-500/30 bg-blue-500/5 p-4"
+                        >
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-blue-500 mb-3">
+                                TL;DR_
+                            </h3>
+                            <p className="text-foreground/80 text-sm leading-relaxed">
+                                {summary}
+                            </p>
+                        </motion.section>
+                    )}
                 </div>
             </div>
         </div>

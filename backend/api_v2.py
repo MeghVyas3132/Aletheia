@@ -11,30 +11,40 @@ OPTIMIZATIONS:
 - Skip domain agents for simple claims
 - Reduced debate rounds (2 instead of 3)
 - Reduced jury size (3 instead of 5)
+
+SECURITY:
+- CORS restricted to allowed origins
+- Rate limiting on verification endpoints
+- Input sanitization and length limits
+- Admin authentication for market resolution
 """
 
 import os
+import re
 import logging
 import asyncio
 import json
 import time
+import hashlib
 from typing import Optional
 from datetime import datetime
+from functools import wraps
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Request, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 # Agents - Use fast triage
 from agents import (
     FactChecker, ForensicExpert, TheJudge,
     DomainAgentRegistry, Domain,
     DevilsAdvocate, AICouncil, Vote,
-    ReportGenerator, ClaimProcessor
+    ReportGenerator, ClaimProcessor,
+    QuestionAnswerer, get_question_answerer
 )
-from agents.claim_triage_fast import FastClaimTriage, get_fast_triage, Complexity
+from agents.claim_triage_fast import FastClaimTriage, get_fast_triage, Complexity, InputType
 
 # Market
 from market import (
@@ -46,20 +56,110 @@ from market import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Aletheia-API-V2")
 
-# FastAPI app
+# ==================== SECURITY CONFIG ====================
+
+# Allowed CORS origins (add your production domains)
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    os.getenv("FRONTEND_URL", "http://localhost:3000"),
+]
+
+# Admin API key for protected endpoints
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "aletheia-admin-key-change-in-prod")
+
+# Rate limiting config
+RATE_LIMIT_REQUESTS = 30  # requests per minute
+rate_limit_store: dict = {}  # Simple in-memory rate limiting
+
+# Input limits
+MAX_CLAIM_LENGTH = 2000
+MIN_CLAIM_LENGTH = 3
+
+# ==================== SECURITY HELPERS ====================
+
+def sanitize_input(text: str) -> str:
+    """
+    Sanitize user input to prevent prompt injection.
+    Removes potentially dangerous patterns while preserving meaning.
+    """
+    if not text:
+        return ""
+    
+    # Remove control characters
+    text = ''.join(char for char in text if ord(char) >= 32 or char in '\n\t')
+    
+    # Remove excessive whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    # Remove potential prompt injection patterns
+    dangerous_patterns = [
+        r'ignore\s+(previous|above|all)\s+instructions?',
+        r'disregard\s+(previous|above|all)',
+        r'forget\s+(everything|all|previous)',
+        r'you\s+are\s+now\s+',
+        r'new\s+instructions?:',
+        r'system\s*:',
+        r'<\|.*?\|>',  # Special tokens
+        r'\[INST\]',
+        r'\[/INST\]',
+    ]
+    
+    for pattern in dangerous_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    return text.strip()
+
+
+def check_rate_limit(client_ip: str) -> bool:
+    """Simple rate limiting check."""
+    now = time.time()
+    minute_ago = now - 60
+    
+    # Clean old entries
+    rate_limit_store[client_ip] = [
+        t for t in rate_limit_store.get(client_ip, [])
+        if t > minute_ago
+    ]
+    
+    # Check limit
+    if len(rate_limit_store.get(client_ip, [])) >= RATE_LIMIT_REQUESTS:
+        return False
+    
+    # Record request
+    if client_ip not in rate_limit_store:
+        rate_limit_store[client_ip] = []
+    rate_limit_store[client_ip].append(now)
+    
+    return True
+
+
+def verify_admin_key(x_admin_key: str = Header(None)) -> bool:
+    """Verify admin API key for protected endpoints."""
+    if not x_admin_key or x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid or missing admin API key"
+        )
+    return True
+
+
+# ==================== FASTAPI APP ====================
+
 app = FastAPI(
     title="Aletheia API V2",
     description="AI-Powered Fact-Checking with Truth Market",
     version="2.0.0"
 )
 
-# CORS
+# CORS - Restricted to allowed origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Key"],
 )
 
 # Storage setup
@@ -78,22 +178,49 @@ ai_council = AICouncil(num_rounds=2)  # Reduced from 3 to 2
 judge = TheJudge()
 report_generator = ReportGenerator(storage_dir=STORAGE_DIR)
 claim_processor = ClaimProcessor()
+question_answerer = get_question_answerer()  # NEW: For questions, not claims
 
 # Market manager
 market_manager = get_market_manager()
 
 
-# ==================== REQUEST MODELS ====================
+# ==================== REQUEST MODELS (with validation) ====================
 
 class ClaimRequest(BaseModel):
-    claim: str
+    claim: str = Field(..., min_length=MIN_CLAIM_LENGTH, max_length=MAX_CLAIM_LENGTH)
+    
+    @field_validator('claim')
+    @classmethod
+    def validate_claim(cls, v: str) -> str:
+        """Validate and sanitize claim input."""
+        if not v or not v.strip():
+            raise ValueError("Claim cannot be empty")
+        
+        sanitized = sanitize_input(v)
+        
+        if len(sanitized) < MIN_CLAIM_LENGTH:
+            raise ValueError(f"Claim too short (min {MIN_CLAIM_LENGTH} chars)")
+        if len(sanitized) > MAX_CLAIM_LENGTH:
+            raise ValueError(f"Claim too long (max {MAX_CLAIM_LENGTH} chars)")
+        
+        return sanitized
 
 
 class BetRequest(BaseModel):
-    user_id: str
-    market_id: str
-    position: str  # "correct" or "wrong"
-    amount: float
+    user_id: str = Field(..., min_length=1, max_length=100)
+    market_id: str = Field(..., min_length=1, max_length=100)
+    position: str = Field(..., pattern="^(correct|wrong)$")
+    amount: float = Field(..., gt=0, le=10000)  # Must be positive, max 10k
+    
+    @field_validator('amount')
+    @classmethod
+    def validate_amount(cls, v: float) -> float:
+        """Validate bet amount."""
+        if v <= 0:
+            raise ValueError("Bet amount must be positive")
+        if v > 10000:
+            raise ValueError("Maximum bet is 10,000 ALETH")
+        return round(v, 2)  # Round to 2 decimal places
 
 
 class UserRequest(BaseModel):
@@ -132,11 +259,15 @@ def health_check():
 # ==================== VERIFICATION ENDPOINTS ====================
 
 @app.post("/verify_stream")
-async def verify_claim_stream(request: ClaimRequest):
+async def verify_claim_stream(request: ClaimRequest, req: Request):
     """
     Full verification with streaming updates.
     Shows progress of each agent and council debate.
     """
+    # Rate limiting check
+    client_ip = req.client.host if req.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
     claim = request.claim.strip()
     if not claim:
         raise HTTPException(status_code=400, detail="Claim cannot be empty")
@@ -146,11 +277,53 @@ async def verify_claim_stream(request: ClaimRequest):
     async def event_generator():
         try:
             # Phase 1: Fast Triage (rule-based, NO LLM)
-            yield f"data: {json.dumps({'type': 'status', 'phase': 'triage', 'message': 'Analyzing claim...'})}\n\n"
+            yield f"data: {json.dumps({'type': 'status', 'phase': 'triage', 'message': 'Analyzing input...'})}\n\n"
             
             triage_result = fast_triage.triage(claim)
             
-            yield f"data: {json.dumps({'type': 'triage', 'data': {'domains': [d.value for d in triage_result.domains], 'complexity': triage_result.complexity.value, 'entities': triage_result.entities, 'claim_type': triage_result.claim_type}})}\n\n"
+            yield f"data: {json.dumps({'type': 'triage', 'data': {'domains': [d.value for d in triage_result.domains], 'complexity': triage_result.complexity.value, 'entities': triage_result.entities, 'claim_type': triage_result.claim_type, 'input_type': triage_result.input_type.value}})}\n\n"
+            
+            # Check if this is a QUESTION (not a claim to verify)
+            if triage_result.input_type in (InputType.QUESTION, InputType.COMPARISON):
+                # Use Question Answerer instead of verification pipeline
+                yield f"data: {json.dumps({'type': 'status', 'phase': 'research', 'message': 'This is a question - researching answer...'})}\n\n"
+                
+                # Quick research via fact checker for sources
+                a1_result = {}
+                async for event in fact_checker.astream_verify(claim):
+                    for node, state in event.items():
+                        if node == "analyst" and "evidence_dossier" in state:
+                            a1_result = state["evidence_dossier"]
+                
+                search_results = a1_result.get("search_results", [])
+                
+                yield f"data: {json.dumps({'type': 'status', 'phase': 'answering', 'message': 'Generating answer with sources...'})}\n\n"
+                
+                # Get answer from Question Answerer
+                answer_result = await question_answerer.answer(claim, search_results)
+                
+                processing_time = time.time() - start_time
+                
+                # Send answer result (different format from verification)
+                final_result = {
+                    "type": "answer",  # Not "result" - this is an ANSWER
+                    "input_type": triage_result.input_type.value,
+                    "question": claim,
+                    "answer": answer_result.answer,
+                    "summary": answer_result.summary,
+                    "nuance": answer_result.nuance,
+                    "is_contentious": answer_result.is_contentious,
+                    "sources": answer_result.sources[:5],
+                    "confidence": answer_result.confidence,
+                    "domains": [d.value for d in triage_result.domains],
+                    "processing_time": round(processing_time, 2)
+                }
+                
+                yield f"data: {json.dumps(final_result)}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            
+            # ========== CLAIM VERIFICATION PIPELINE (for statements, not questions) ==========
             
             # Phase 2: Domain Agents (ONLY for complex claims - skip for simple/medium)
             domain_evidence = []
@@ -228,8 +401,8 @@ async def verify_claim_stream(request: ClaimRequest):
             )
             
             # Stream debate rounds
-            for round in council_verdict.debate_transcript:
-                yield f"data: {json.dumps({'type': 'debate_round', 'round': round.round_num, 'type': round.round_type, 'prosecutor': round.prosecutor_argument.argument[:200], 'defender': round.defender_argument.argument[:200]})}\n\n"
+            for debate_round in council_verdict.debate_transcript:
+                yield f"data: {json.dumps({'type': 'debate_round', 'round': debate_round.round_num, 'round_type': debate_round.round_type, 'prosecutor': debate_round.prosecutor_argument.argument[:200], 'defender': debate_round.defender_argument.argument[:200]})}\n\n"
             
             # Stream jury votes
             for vote in council_verdict.juror_votes:
@@ -315,11 +488,16 @@ async def verify_claim_stream(request: ClaimRequest):
 
 
 @app.post("/verify")
-async def verify_claim(request: ClaimRequest):
+async def verify_claim(request: ClaimRequest, req: Request):
     """
     Non-streaming verification endpoint.
     Returns complete result after all processing.
     """
+    # Rate limiting check
+    client_ip = req.client.host if req.client else "unknown"
+    if not check_rate_limit(client_ip):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+    
     claim = request.claim.strip()
     if not claim:
         raise HTTPException(status_code=400, detail="Claim cannot be empty")
@@ -489,8 +667,11 @@ def place_bet(request: BetRequest):
 
 
 @app.post("/market/resolve")
-def resolve_market(request: ResolveRequest):
-    """Resolve a market (admin only in production)."""
+def resolve_market(
+    request: ResolveRequest,
+    admin_verified: bool = Depends(verify_admin_key)
+):
+    """Resolve a market (admin only - requires X-Admin-Key header)."""
     try:
         outcome = ResolutionOutcome(request.outcome)
     except ValueError:

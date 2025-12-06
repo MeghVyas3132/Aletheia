@@ -3,6 +3,10 @@ Fast Claim Triage - Rule-based (NO LLM calls)
 
 Uses regex patterns and keyword matching instead of LLM.
 Reduces triage from 1 LLM call to 0 LLM calls.
+
+Now also detects QUESTIONS vs CLAIMS:
+- Questions get answered with actual responses
+- Claims get TRUE/FALSE verdicts
 """
 
 import re
@@ -34,6 +38,13 @@ class Complexity(Enum):
     COMPLEX = "complex"    # Multi-domain, requires expert analysis
 
 
+class InputType(Enum):
+    """Type of user input."""
+    CLAIM = "claim"        # Statement to verify (TRUE/FALSE)
+    QUESTION = "question"  # Question to answer (provide answer)
+    COMPARISON = "comparison"  # Comparing two things (provide analysis)
+
+
 @dataclass
 class TriageResult:
     """Result of claim triage."""
@@ -43,6 +54,7 @@ class TriageResult:
     complexity: Complexity
     entities: List[str]
     claim_type: str  # factual, opinion, prediction, comparison
+    input_type: InputType  # NEW: question, claim, or comparison
 
 
 # Domain keyword patterns
@@ -170,6 +182,26 @@ CLAIM_TYPE_PATTERNS = {
     'factual': []  # Default
 }
 
+# Question detection patterns
+QUESTION_PATTERNS = [
+    r'^(who|what|when|where|why|how|which|whose|whom)\s+',  # WH-questions
+    r'^(is|are|was|were|do|does|did|can|could|will|would|should|has|have|had)\s+\w+\s+\w+.*\?',  # Yes/No questions
+    r'\?$',  # Ends with question mark
+    r'^(tell me|explain|describe|define|list|name)\s+',  # Imperative questions
+    r'\b(what is|who is|where is|when is|why is|how is)\b',  # Embedded WH
+    r'\b(who owns|who invented|who created|who founded|who discovered)\b',  # Ownership questions
+    r'\b(belong to|belongs to|owned by|created by)\b',  # Ownership/attribution
+]
+
+# Comparison question patterns (neither purely question nor claim)
+COMPARISON_PATTERNS = [
+    r'\b(or)\b.*\?',  # "X or Y?"
+    r'\b(which one|which is better|which is)\b',  # Which comparisons
+    r'\b(tamilians or|kannad|karnataka or tamil|tamil or karnataka)\b',  # Regional comparisons
+    r'\b(belongs to .* or|owned by .* or)\b',  # Ownership comparisons
+    r'\b(vs\.?|versus)\b.*\?',  # X vs Y?
+]
+
 
 class FastClaimTriage:
     """Fast rule-based claim triage (no LLM calls)."""
@@ -180,6 +212,9 @@ class FastClaimTriage:
         Zero LLM calls - instant results.
         """
         normalized = claim.lower().strip()
+        
+        # Detect input type (question, claim, or comparison)
+        input_type = self._detect_input_type(normalized)
         
         # Detect domains
         domains = self._detect_domains(normalized)
@@ -199,7 +234,8 @@ class FastClaimTriage:
             domains=domains if domains else [Domain.GENERAL],
             complexity=complexity,
             entities=entities,
-            claim_type=claim_type
+            claim_type=claim_type,
+            input_type=input_type
         )
     
     def _detect_domains(self, claim: str) -> List[Domain]:
@@ -279,6 +315,24 @@ class FastClaimTriage:
                 if re.search(pattern, claim, re.IGNORECASE):
                     return claim_type
         return 'factual'
+    
+    def _detect_input_type(self, text: str) -> InputType:
+        """
+        Detect if input is a question, claim, or comparison.
+        Questions get answered, claims get verified TRUE/FALSE.
+        """
+        # Check for comparisons first (most specific)
+        for pattern in COMPARISON_PATTERNS:
+            if re.search(pattern, text, re.IGNORECASE):
+                return InputType.COMPARISON
+        
+        # Check for question patterns
+        for pattern in QUESTION_PATTERNS:
+            if re.search(pattern, text, re.IGNORECASE):
+                return InputType.QUESTION
+        
+        # Default to claim (needs TRUE/FALSE verification)
+        return InputType.CLAIM
 
 
 # Singleton instance

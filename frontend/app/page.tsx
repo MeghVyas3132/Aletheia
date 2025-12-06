@@ -63,6 +63,14 @@ export default function Home() {
                 setSources(prev => [...prev, ...data.data]);
               } else if (data.type === "result") {
                 setResult(data.data);
+              } else if (data.type === "answer") {
+                // NEW: Handle question answers (not TRUE/FALSE verification)
+                setResult({
+                  ...data,
+                  is_answer: true,  // Flag for VerificationResult
+                  verdict: null,    // No verdict for questions
+                  truth_probability: null
+                });
               } else if (data.type === "error") {
                 setError(data.message);
               } else if (data.type === "status") {

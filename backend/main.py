@@ -990,9 +990,12 @@ def run_truthchain(claim: str):
         padding=(1, 2)
     ))
     
-    # Open PDF automatically on macOS
+    # Open PDF automatically on macOS (safe subprocess call)
     if sys.platform == "darwin":
-        os.system(f'open "{pdf_path}"')
+        try:
+            subprocess.run(["open", pdf_path], check=False, capture_output=True)
+        except Exception:
+            pass  # Silently fail if PDF can't be opened
     
     logger.info(f"Pipeline complete in {elapsed_time:.1f}s")
     logger.info(f"Final verdict: {verdict_display}")
