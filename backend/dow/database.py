@@ -10,16 +10,22 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 
-# Database file path
-DB_PATH = os.environ.get("DOW_DB_PATH", "/app/storage/dow.db")
+# Database file path - use environment variable or fallback to local storage
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "storage", "dow.db")
+DB_PATH = os.environ.get("DOW_DB_PATH", DEFAULT_DB_PATH)
 
 
 def get_db_path() -> str:
     """Get database path, ensuring directory exists."""
-    db_dir = os.path.dirname(DB_PATH)
+    db_path = DB_PATH
+    db_dir = os.path.dirname(db_path)
     if db_dir and not os.path.exists(db_dir):
-        os.makedirs(db_dir, exist_ok=True)
-    return DB_PATH
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except OSError:
+            # Fallback to current directory if storage can't be created
+            db_path = os.path.join(os.path.dirname(__file__), "dow.db")
+    return db_path
 
 
 @contextmanager
