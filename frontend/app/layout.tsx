@@ -28,6 +28,10 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Aletheia - AI Fact Checker",
   description: "Verify claims with multi-agent AI intelligence.",
+  icons: {
+    icon: "/logo-dark.jpg",
+    apple: "/logo-dark.jpg",
+  },
 };
 
 export default function RootLayout({
