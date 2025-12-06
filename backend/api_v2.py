@@ -52,6 +52,12 @@ from market import (
     Market, Bet, BetPosition, ResolutionOutcome, MarketStatus
 )
 
+# DOW (Decentralized Oracle of Wisdom)
+from dow import (
+    DOWManager, get_dow_manager,
+    Challenge, ChallengeStatus, Vote as DOWVote
+)
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("Aletheia-API-V2")
@@ -749,3 +755,274 @@ def get_leaderboard(limit: int = Query(default=10, le=100)):
 def get_platform_stats():
     """Get overall platform statistics."""
     return market_manager.get_platform_stats()
+
+
+# ==================== DOW (Decentralized Oracle of Wisdom) ====================
+
+dow_manager = get_dow_manager()
+
+
+# Request models for DOW
+class ChallengeSubmitRequest(BaseModel):
+    verdict_id: str = Field(..., min_length=1)
+    challenger_wallet: str = Field(..., min_length=1)
+    stake_amount: float = Field(..., gt=0, le=100)
+    evidence_links: list[str] = Field(..., min_length=2)
+    explanation: str = Field(..., min_length=100)
+
+
+class VoteRequest(BaseModel):
+    voter_wallet: str = Field(..., min_length=1)
+    position: str = Field(..., pattern="^(ai|challenger)$")
+    reasoning: Optional[str] = None
+
+
+class ForceResolveRequest(BaseModel):
+    winner: str = Field(..., pattern="^(ai|challenger)$")
+    reason: str = Field(..., min_length=10)
+
+
+# Challenge endpoints
+@app.post("/challenge/submit")
+def submit_challenge(request: ChallengeSubmitRequest):
+    """
+    Submit a challenge to a verdict.
+    
+    Requires:
+    - verdict_id: ID of the verdict to challenge
+    - challenger_wallet: Wallet address of challenger
+    - stake_amount: SOL to stake (1-100)
+    - evidence_links: At least 2 evidence URLs
+    - explanation: At least 100 chars explaining why verdict is wrong
+    """
+    success, message, challenge = dow_manager.submit_challenge(
+        verdict_id=request.verdict_id,
+        challenger_wallet=request.challenger_wallet,
+        stake_amount=request.stake_amount,
+        evidence_links=request.evidence_links,
+        explanation=request.explanation
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    
+    return {
+        "success": True,
+        "message": message,
+        "challenge": challenge.to_dict()
+    }
+
+
+@app.get("/challenge/{challenge_id}")
+def get_challenge(challenge_id: str):
+    """Get challenge details."""
+    challenge = dow_manager.get_challenge(challenge_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    
+    return {"challenge": challenge.to_dict()}
+
+
+@app.get("/challenges/active")
+def get_active_challenges():
+    """Get all active challenges (voting in progress)."""
+    challenges = dow_manager.get_active_challenges()
+    return {
+        "count": len(challenges),
+        "challenges": [c.to_dict() for c in challenges]
+    }
+
+
+@app.get("/challenges/wallet/{wallet_address}")
+def get_challenges_by_wallet(wallet_address: str):
+    """Get all challenges submitted by a wallet."""
+    challenges = dow_manager.get_challenges_by_wallet(wallet_address)
+    return {
+        "count": len(challenges),
+        "challenges": [c.to_dict() for c in challenges]
+    }
+
+
+# Voting endpoints
+@app.post("/challenge/{challenge_id}/vote")
+def cast_vote(challenge_id: str, request: VoteRequest):
+    """
+    Cast a vote on a challenge.
+    
+    Requires:
+    - voter_wallet: Wallet address of voter
+    - position: "ai" (AI is correct) or "challenger" (challenger is correct)
+    - reasoning: Optional explanation for vote
+    """
+    success, message, vote = dow_manager.cast_vote(
+        challenge_id=challenge_id,
+        voter_wallet=request.voter_wallet,
+        position=request.position,
+        reasoning=request.reasoning
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    
+    return {
+        "success": True,
+        "message": message,
+        "vote": vote.to_dict()
+    }
+
+
+@app.get("/challenge/{challenge_id}/votes")
+def get_challenge_votes(challenge_id: str):
+    """Get all votes for a challenge."""
+    challenge = dow_manager.get_challenge(challenge_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    
+    votes = dow_manager.get_votes_for_challenge(challenge_id)
+    
+    return {
+        "challenge_id": challenge_id,
+        "votes_for_ai": challenge.votes_for_ai,
+        "votes_for_challenger": challenge.votes_for_challenger,
+        "voter_count": challenge.voter_count,
+        "ai_percentage": challenge.ai_vote_percentage,
+        "challenger_percentage": challenge.challenger_vote_percentage,
+        "votes": [v.to_dict() for v in votes]
+    }
+
+
+# Resolution endpoints
+@app.post("/challenge/resolve-pending")
+def resolve_pending_challenges():
+    """
+    Check and resolve all challenges whose voting period has ended.
+    This should be called periodically (e.g., via cron job).
+    """
+    resolved = dow_manager.check_and_resolve_challenges()
+    return {
+        "resolved_count": len(resolved),
+        "results": [{"challenge_id": cid, "outcome": outcome} for cid, outcome in resolved]
+    }
+
+
+@app.post("/challenge/{challenge_id}/force-resolve")
+def force_resolve_challenge(
+    challenge_id: str,
+    request: ForceResolveRequest,
+    admin_verified: bool = Depends(verify_admin_key)
+):
+    """
+    Admin force-resolve a challenge.
+    Requires X-Admin-Key header.
+    """
+    success, message = dow_manager.force_resolve(
+        challenge_id=challenge_id,
+        winner=request.winner,
+        reason=request.reason
+    )
+    
+    if not success:
+        raise HTTPException(status_code=400, detail=message)
+    
+    return {"success": True, "message": message}
+
+
+# Treasury endpoints
+@app.get("/treasury")
+def get_treasury_stats():
+    """Get Aletheia treasury statistics."""
+    return dow_manager.get_treasury_stats()
+
+
+@app.post("/treasury/fund")
+def fund_treasury(
+    amount: float = Query(..., gt=0),
+    admin_verified: bool = Depends(verify_admin_key)
+):
+    """Add funds to treasury (admin only)."""
+    dow_manager.add_treasury_funds(amount)
+    return {
+        "success": True,
+        "message": f"Added {amount} SOL to treasury",
+        "treasury": dow_manager.get_treasury_stats()
+    }
+
+
+# Voter endpoints
+@app.get("/voter/{wallet_address}")
+def get_voter_info(wallet_address: str):
+    """Get voter information and stats."""
+    voter = dow_manager.get_or_create_voter(wallet_address)
+    return {"voter": voter.to_dict()}
+
+
+@app.get("/voter/{wallet_address}/reputation")
+def get_voter_reputation(wallet_address: str):
+    """Get voter reputation score."""
+    voter = dow_manager.get_or_create_voter(wallet_address)
+    return {
+        "wallet": wallet_address,
+        "reputation": voter.reputation,
+        "accuracy": round(voter.historical_accuracy * 100, 1),
+        "total_votes": voter.total_votes,
+        "vote_weight": voter.calculate_vote_weight()
+    }
+
+
+# DOW Leaderboards
+@app.get("/dow/leaderboard/challengers")
+def get_challenger_leaderboard(limit: int = Query(default=10, le=50)):
+    """Get top challengers by successful challenges."""
+    leaderboard = dow_manager.get_challenger_leaderboard(limit)
+    return {"leaderboard": leaderboard}
+
+
+@app.get("/dow/leaderboard/voters")
+def get_voter_leaderboard(limit: int = Query(default=10, le=50)):
+    """Get top voters by accuracy and reputation."""
+    leaderboard = dow_manager.get_voter_leaderboard(limit)
+    return {"leaderboard": leaderboard}
+
+
+# Verdict registration (called internally after verification)
+@app.post("/verdict/register")
+def register_verdict(
+    verdict_id: str,
+    claim: str,
+    domain: str,
+    verdict: str,
+    confidence: float
+):
+    """
+    Register a verdict for potential challenges.
+    Called internally after verification completes.
+    """
+    dow_manager.register_verdict(
+        verdict_id=verdict_id,
+        claim=claim,
+        domain=domain,
+        verdict=verdict,
+        confidence=confidence
+    )
+    
+    return {
+        "success": True,
+        "verdict_id": verdict_id,
+        "challengeable": True,
+        "challenge_window_hours": dow_manager.config.challenge_window
+    }
+
+
+@app.get("/verdict/{verdict_id}/challengeable")
+def check_verdict_challengeable(verdict_id: str):
+    """Check if a verdict can be challenged."""
+    can_challenge, reason = dow_manager.is_verdict_challengeable(verdict_id)
+    verdict_info = dow_manager.get_verdict(verdict_id)
+    
+    return {
+        "verdict_id": verdict_id,
+        "challengeable": can_challenge,
+        "reason": reason,
+        "verdict_info": verdict_info
+    }
+

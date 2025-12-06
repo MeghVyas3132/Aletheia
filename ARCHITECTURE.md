@@ -12,7 +12,7 @@
 6. [Verification Pipeline](#6-verification-pipeline)
 7. [Question vs Claim Detection](#7-question-vs-claim-detection)
 8. [AI Council Debate System](#8-ai-council-debate-system)
-9. [Truth Market (Prediction Market)](#9-truth-market-prediction-market)
+9. [Decentralized Oracle of Wisdom (DOW)](#9-decentralized-oracle-of-wisdom-dow)
 10. [Frontend Architecture](#10-frontend-architecture)
 11. [API Reference](#11-api-reference)
 12. [Security Implementation](#12-security-implementation)
@@ -28,18 +28,26 @@
 
 - **Multi-Agent Verification**: 6+ specialized AI agents that investigate claims from different perspectives
 - **Adversarial Debate**: An AI Council with Prosecutor, Defender, and Jury that debates each claim
-- **Prediction Market**: Users can bet on whether Aletheia's verdicts are correct (Polymarket-style)
+- **Decentralized Oracle of Wisdom (DOW)**: Users can stake SOL to challenge AI verdicts - if they prove the AI wrong, they win 2x their stake
 - **Question Answering**: Intelligently detects questions vs claims and provides appropriate responses
 
 ### Key Innovation
 
-Unlike traditional fact-checkers that just return TRUE/FALSE, Aletheia uses an **adversarial multi-agent debate system** where AI agents argue BOTH sides of a claim before a jury votes on the verdict. This mimics a courtroom trial to reduce bias and increase accuracy.
+Unlike traditional fact-checkers that just return TRUE/FALSE, Aletheia uses:
+1. **Adversarial multi-agent debate system** where AI agents argue BOTH sides of a claim
+2. **Economic skin-in-the-game** where users stake real tokens to challenge verdicts
+3. **Community validation** through decentralized voting on disputed claims
+
+This creates a self-correcting system where:
+- **AI must be 99.99% accurate** (or lose money on challenges)
+- **Users are incentivized to find errors** (2x reward for successful challenges)
+- **Community validates disputes** (democratic truth-finding)
 
 ### Core Metrics
 - **LLM Provider**: Groq (Llama 3.1 8B Instant) - ~200ms response times
 - **Search Engine**: Tavily API for real-time web search
-- **Triage**: 0 LLM calls (pure regex/keyword matching)
-- **Full Verification**: 8-15 LLM calls depending on complexity
+- **Blockchain**: Solana (for staking and challenge resolution)
+- **Target Accuracy**: 99.99% (required for economic sustainability)
 - **End-to-End Latency**: 15-45 seconds per claim
 
 ---
@@ -652,137 +660,605 @@ def determine_verdict(votes: List[JurorVote]) -> Vote:
 
 ---
 
-## 9. Truth Market (Prediction Market)
+## 9. Decentralized Oracle of Wisdom (DOW)
 
-### 9.1 Concept
+### 9.1 The Core Problem with Traditional Fact-Checking
 
-The Truth Market is a **Polymarket-style prediction market** where users bet on whether Aletheia's verdicts are correct.
+Traditional fact-checkers have a fundamental flaw: **Who checks the checker?**
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       TRUTH MARKET                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  CLAIM: "Apple's market cap exceeded $3 trillion"                │
-│  ALETHEIA VERDICT: TRUE (92% confidence)                         │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────────┐│
-│  │  BET: Is Aletheia correct?                                  ││
-│  │                                                             ││
-│  │  ┌───────────────┐         ┌───────────────┐                ││
-│  │  │   CORRECT     │         │    WRONG      │                ││
-│  │  │   75% odds    │         │   25% odds    │                ││
-│  │  │   Pool: 7500  │         │   Pool: 2500  │                ││
-│  │  └───────────────┘         └───────────────┘                ││
-│  │                                                             ││
-│  │  [Place Bet: 100 ALETH] [Position: CORRECT]                 ││
-│  └─────────────────────────────────────────────────────────────┘│
-│                                                                  │
-│  MARKET STATUS: OPEN                                             │
-│  CLOSES: 7 days from creation                                    │
-│  RESOLUTION: Community verification or admin                     │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 9.2 Market Lifecycle
+Aletheia solves this with a **Decentralized Oracle of Wisdom (DOW)** — a blockchain-based system where:
+- AI provides high-confidence verdicts
+- Users can challenge verdicts by staking tokens
+- Community votes determine the final truth
+- Economic incentives ensure honest participation
 
 ```
-PENDING → OPEN → CLOSED → RESOLVED
-            │                  │
-            │                  ├── ALETHEIA_CORRECT (bettors on CORRECT win)
-            │                  ├── ALETHEIA_WRONG (bettors on WRONG win)
-            │                  └── VOIDED (all bets refunded)
-            │
-            └── DISPUTED (under review)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    DECENTRALIZED ORACLE OF WISDOM (DOW)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         PHASE 1: AI VERDICT                          │    │
+│  │                                                                      │    │
+│  │   Aletheia's Multi-Agent System analyzes claim                       │    │
+│  │   Target Accuracy: 99.99%                                            │    │
+│  │                                                                      │    │
+│  │   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │    │
+│  │   │  Fact   │→│Forensic │→│ Devil's │→│   AI    │→│  Final  │       │    │
+│  │   │ Checker │ │ Expert  │ │Advocate │ │ Council │ │ Verdict │       │    │
+│  │   └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘       │    │
+│  │                                                                      │    │
+│  │   Verdict: TRUE | Confidence: 97.5%                                  │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                      PHASE 2: CHALLENGE WINDOW                       │    │
+│  │                                                                      │    │
+│  │   ⏰ 24-72 hours for users to challenge                              │    │
+│  │                                                                      │    │
+│  │   User: "I disagree! Here's my evidence + 10 SOL stake"              │    │
+│  │                                                                      │    │
+│  │   ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │   │  CHALLENGE SUBMITTED                                         │   │    │
+│  │   │                                                              │   │    │
+│  │   │  Challenger: @truth_seeker                                   │   │    │
+│  │   │  Stake: 10 SOL                                               │   │    │
+│  │   │  Position: Aletheia is WRONG                                 │   │    │
+│  │   │  Evidence: [links, documents, reasoning]                     │   │    │
+│  │   │                                                              │   │    │
+│  │   │  "The claim is actually FALSE because..."                    │   │    │
+│  │   └─────────────────────────────────────────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                      PHASE 3: COMMUNITY VOTING                       │    │
+│  │                                                                      │    │
+│  │   All users can see the challenge and vote                           │    │
+│  │                                                                      │    │
+│  │   ┌─────────────────────┐    ┌─────────────────────┐                │    │
+│  │   │  🤖 ALETHEIA IS     │    │  👤 CHALLENGER IS   │                │    │
+│  │   │     CORRECT         │    │     CORRECT         │                │    │
+│  │   │                     │    │                     │                │    │
+│  │   │  ████████████░░░░░  │    │  ████░░░░░░░░░░░░░  │                │    │
+│  │   │  65% (130 votes)    │    │  35% (70 votes)     │                │    │
+│  │   │                     │    │                     │                │    │
+│  │   │  [VOTE FOR AI]      │    │  [VOTE FOR USER]    │                │    │
+│  │   └─────────────────────┘    └─────────────────────┘                │    │
+│  │                                                                      │    │
+│  │   Voting Period: 48 hours                                            │    │
+│  │   Min Voters Required: 50                                            │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                    │                                         │
+│                                    ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                       PHASE 4: RESOLUTION                            │    │
+│  │                                                                      │    │
+│  │   IF ALETHEIA WINS (>50% votes):                                     │    │
+│  │   ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │   │  • Challenger loses their 10 SOL stake                       │   │    │
+│  │   │  • Stake goes to Aletheia Resource Fund                      │   │    │
+│  │   │  • Voters who voted for AI get reputation boost              │   │    │
+│  │   │  • AI verdict becomes FINALIZED                              │   │    │
+│  │   └─────────────────────────────────────────────────────────────┘   │    │
+│  │                                                                      │    │
+│  │   IF CHALLENGER WINS (>50% votes):                                   │    │
+│  │   ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │   │  • Challenger gets 2x their stake (20 SOL)                   │   │    │
+│  │   │  • Extra 10 SOL comes from Aletheia Resource Fund            │   │    │
+│  │   │  • Voters who voted for User get token rewards               │   │    │
+│  │   │  • AI verdict is CORRECTED                                   │   │    │
+│  │   │  • AI learns from this mistake                               │   │    │
+│  │   └─────────────────────────────────────────────────────────────┘   │    │
+│  │                                                                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.3 Odds Calculation
+### 9.2 Economic Model
 
-Odds are calculated using the **pool ratio**:
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DOW ECONOMIC MODEL                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ALETHEIA RESOURCE FUND                                                      │
+│  ═══════════════════════                                                     │
+│  • Treasury that backs the system                                            │
+│  • Funded by: Lost challenges, platform fees, initial seed                  │
+│  • Used for: Paying winning challengers, voter rewards                      │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                         TOKEN FLOW                                    │    │
+│  │                                                                       │    │
+│  │                    ┌─────────────────┐                                │    │
+│  │                    │   ALETHEIA      │                                │    │
+│  │        ┌──────────▶│   RESOURCE      │◀──────────┐                   │    │
+│  │        │           │   FUND          │           │                    │    │
+│  │        │           └────────┬────────┘           │                    │    │
+│  │        │                    │                    │                    │    │
+│  │   Lost Stakes          Winning Payouts      Platform Fees            │    │
+│  │   (AI wins)            (User wins)          (2% of stakes)           │    │
+│  │        │                    │                    │                    │    │
+│  │        │                    ▼                    │                    │    │
+│  │   ┌────┴────┐        ┌─────────────┐       ┌────┴────┐               │    │
+│  │   │Challenger│        │  Winning    │       │  Every  │               │    │
+│  │   │ Stakes   │        │ Challenger  │       │Challenge│               │    │
+│  │   │ 10 SOL   │        │ Gets 2x     │       │         │               │    │
+│  │   └─────────┘        └─────────────┘       └─────────┘               │    │
+│  │                                                                       │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  PAYOUT STRUCTURE                                                            │
+│  ════════════════                                                            │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  Scenario              │ Challenger │ Voters (AI) │ Voters (User)   │    │
+│  ├────────────────────────┼────────────┼─────────────┼─────────────────┤    │
+│  │  AI Wins               │  -10 SOL   │ +Rep boost  │  No change      │    │
+│  │  Challenger Wins       │  +20 SOL   │  No change  │ +Token reward   │    │
+│  │  No Challenge          │    N/A     │     N/A     │      N/A        │    │
+│  │  Insufficient Votes    │  Refund    │     N/A     │      N/A        │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.3 Why Aletheia Must Be 99.99% Accurate
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    THE ACCURACY IMPERATIVE                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  PROBLEM:                                                                    │
+│  ════════                                                                    │
+│  If Aletheia is wrong and users successfully challenge:                      │
+│  • We pay 2x their stake from our fund                                       │
+│  • Fund depletes over time                                                   │
+│  • System becomes unsustainable                                              │
+│                                                                              │
+│  MATH:                                                                       │
+│  ═════                                                                       │
+│  Let's say our fund has 1000 SOL                                             │
+│                                                                              │
+│  If 95% accurate:                                                            │
+│  • 100 claims verified                                                       │
+│  • 5 wrong → Users challenge and win                                         │
+│  • Each challenge: 10 SOL stake → 20 SOL payout                             │
+│  • Cost: 5 × 10 SOL (our contribution) = 50 SOL lost                        │
+│  • Per 100 claims: -50 SOL                                                   │
+│  • Fund depletes in ~2000 claims                                             │
+│                                                                              │
+│  If 99.99% accurate:                                                         │
+│  • 10,000 claims verified                                                    │
+│  • 1 wrong → Users challenge and win                                         │
+│  • Cost: 1 × 10 SOL = 10 SOL lost                                           │
+│  • Per 10,000 claims: -10 SOL                                                │
+│  • Meanwhile, 9,999 lost challenges = +99,990 SOL gained                    │
+│  • NET: +99,980 SOL profit                                                   │
+│                                                                              │
+│  CONCLUSION:                                                                 │
+│  ═══════════                                                                 │
+│  High accuracy = Sustainable treasury = Long-term viability                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.4 How We Achieve 99.99% Accuracy
+
+To reach near-perfect accuracy, we implement multiple layers of verification:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ACCURACY MAXIMIZATION STRATEGY                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  LAYER 1: MULTI-AGENT VERIFICATION (Implemented)                            │
+│  ──────────────────────────────────────────────                              │
+│  • FactChecker: Web search + evidence gathering                             │
+│  • ForensicExpert: Linguistic + source analysis                             │
+│  • DevilsAdvocate: Actively tries to disprove                               │
+│  • AI Council: Adversarial debate + jury vote                               │
+│  Accuracy: ~85-90%                                                           │
+│                                                                              │
+│  LAYER 2: CONFIDENCE THRESHOLD                                              │
+│  ─────────────────────────────                                               │
+│  Only issue verdicts when confidence > 95%                                   │
+│  Below 95% → Return "UNCERTAIN" (no challenge allowed)                       │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  Confidence    │  Verdict Issued  │  Challenge Allowed             │    │
+│  ├────────────────┼──────────────────┼─────────────────────────────────┤    │
+│  │  > 98%         │  TRUE/FALSE      │  Yes (2x payout if user wins)  │    │
+│  │  95% - 98%     │  LIKELY TRUE/    │  Yes (1.5x payout if user wins)│    │
+│  │                │  LIKELY FALSE    │                                 │    │
+│  │  < 95%         │  UNCERTAIN       │  No (no challenge allowed)     │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  LAYER 3: SOURCE AUTHORITY VERIFICATION                                     │
+│  ───────────────────────────────────────                                     │
+│  Before issuing verdict, check against authoritative sources:               │
+│                                                                              │
+│  • Tier 1 (Auto-verify): .gov, .edu, court rulings, SEC filings            │
+│  • Tier 2 (High trust): Reuters, AP, BBC, peer-reviewed journals           │
+│  • Tier 3 (Medium trust): Major newspapers, reputable fact-checkers        │
+│  • Tier 4 (Low trust): Blogs, social media, unknown sources                │
+│                                                                              │
+│  Rule: Verdict requires at least 2 Tier 1-2 sources agreeing               │
+│                                                                              │
+│  LAYER 4: CLAIM TYPE FILTERING                                              │
+│  ────────────────────────────                                                │
+│  Only accept claims that CAN be objectively verified:                        │
+│                                                                              │
+│  ✅ ACCEPT:                                                                  │
+│  • "Apple's market cap exceeded $3 trillion" (verifiable fact)              │
+│  • "COVID vaccine reduces hospitalization by 90%" (published study)         │
+│  • "India won the 2023 Cricket World Cup" (historical fact)                │
+│                                                                              │
+│  ❌ REJECT (Return UNVERIFIABLE):                                           │
+│  • "Bitcoin will reach $100k by 2025" (prediction)                          │
+│  • "Pizza is the best food" (opinion)                                       │
+│  • "My neighbor said X" (unverifiable hearsay)                              │
+│  • "This private meeting discussed Y" (no public record)                    │
+│                                                                              │
+│  LAYER 5: MULTI-MODEL CONSENSUS (For High-Stakes)                           │
+│  ────────────────────────────────────────────────                            │
+│  For challenges > 5 SOL, use multiple LLMs:                                  │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                                                                      │    │
+│  │   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐            │    │
+│  │   │ Groq    │   │ Claude  │   │ GPT-4   │   │ Gemini  │            │    │
+│  │   │ Llama   │   │   3.5   │   │         │   │  Pro    │            │    │
+│  │   └────┬────┘   └────┬────┘   └────┬────┘   └────┬────┘            │    │
+│  │        │             │             │             │                  │    │
+│  │        └─────────────┼─────────────┼─────────────┘                  │    │
+│  │                      │             │                                 │    │
+│  │                      ▼             ▼                                 │    │
+│  │              ┌─────────────────────────┐                            │    │
+│  │              │   CONSENSUS REQUIRED    │                            │    │
+│  │              │   3/4 models must agree │                            │    │
+│  │              │   for verdict to issue  │                            │    │
+│  │              └─────────────────────────┘                            │    │
+│  │                                                                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  LAYER 6: HISTORICAL ACCURACY TRACKING                                      │
+│  ─────────────────────────────────────                                       │
+│  • Track every verdict and challenge outcome                                │
+│  • Claims similar to previously-wrong verdicts get extra scrutiny           │
+│  • Continuous learning from mistakes                                        │
+│                                                                              │
+│  LAYER 7: HUMAN ESCALATION (For Edge Cases)                                 │
+│  ──────────────────────────────────────────                                  │
+│  If confidence is 90-95% AND claim is high-stakes:                          │
+│  • Flag for human expert review before issuing verdict                      │
+│  • Domain experts (doctors for health, lawyers for legal, etc.)            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.5 Challenge Requirements
+
+To prevent spam challenges and ensure quality:
 
 ```python
-@property
-def correct_odds(self) -> float:
-    """Probability implied by betting for 'correct'."""
-    if self.total_pool == 0:
-        return 0.5
-    return self.wrong_pool / self.total_pool
-
-@property
-def wrong_odds(self) -> float:
-    """Probability implied by betting for 'wrong'."""
-    if self.total_pool == 0:
-        return 0.5
-    return self.correct_pool / self.total_pool
+# Challenge Requirements
+CHALLENGE_CONFIG = {
+    "stake": {
+        "min": 1,       # SOL - prevents spam
+        "max": 100,     # SOL - limits exposure
+    },
+    "evidence": {
+        "required": True,
+        "min_sources": 2,           # Must provide at least 2 sources
+        "min_explanation": 100,     # Minimum 100 characters explanation
+    },
+    "challenger": {
+        "min_reputation": 10,       # Must have some history
+        "max_active_challenges": 3, # Can't spam challenges
+    },
+    "timing": {
+        "challenge_window": 72,     # Hours after verdict
+        "voting_period": 48,        # Hours for community vote
+        "min_voters": 50,           # Minimum votes for valid resolution
+    }
+}
 ```
 
-### 9.4 Payout Calculation
+### 9.6 Voting Mechanics
 
-```python
-def calculate_payout(bet: Bet, outcome: ResolutionOutcome) -> float:
-    market = markets[bet.market_id]
-    
-    if outcome == ResolutionOutcome.VOIDED:
-        return bet.amount  # Full refund
-    
-    if bet.position == BetPosition.CORRECT and outcome == ResolutionOutcome.ALETHEIA_CORRECT:
-        # Winner: gets share of losing pool
-        share = bet.amount / market.correct_pool
-        winnings = share * market.wrong_pool
-        return bet.amount + winnings
-    
-    if bet.position == BetPosition.WRONG and outcome == ResolutionOutcome.ALETHEIA_WRONG:
-        share = bet.amount / market.wrong_pool
-        winnings = share * market.correct_pool
-        return bet.amount + winnings
-    
-    return 0  # Lost bet
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           VOTING SYSTEM                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  WHO CAN VOTE:                                                               │
+│  • Any user with > 5 reputation points                                      │
+│  • Must not have financial stake in outcome                                 │
+│  • One vote per user per challenge                                          │
+│                                                                              │
+│  VOTE WEIGHT:                                                                │
+│  Base vote = 1                                                               │
+│  + Reputation bonus: sqrt(reputation) / 10                                  │
+│  + Domain expertise: +0.5 if verified expert in claim domain               │
+│  + Historical accuracy: +0.2 if >80% correct votes historically            │
+│                                                                              │
+│  Example:                                                                    │
+│  • New user (rep=10): 1 + 0.316 = 1.316 vote weight                         │
+│  • Expert user (rep=100, domain expert): 1 + 1 + 0.5 = 2.5 vote weight     │
+│                                                                              │
+│  ANTI-SYBIL MEASURES:                                                        │
+│  • Wallet age requirement (> 30 days)                                       │
+│  • Transaction history requirement                                          │
+│  • Vote pattern analysis (detect coordinated voting)                        │
+│  • Gradual reputation building                                              │
+│                                                                              │
+│  INCENTIVES:                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  Voter Outcome        │  Reward                                      │    │
+│  ├───────────────────────┼──────────────────────────────────────────────┤    │
+│  │  Voted for winner     │  +2 reputation, small token reward          │    │
+│  │  Voted for loser      │  No penalty (encourage participation)       │    │
+│  │  Abstained            │  No change                                   │    │
+│  │  Detected manipulation│  -50 reputation, potential ban              │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 9.5 Data Models
+### 9.7 Data Models
 
 ```python
 @dataclass
-class Market:
-    market_id: str
-    claim: str
-    claim_hash: str
+class Challenge:
+    challenge_id: str
+    claim_id: str
+    verdict_id: str
     
-    # Aletheia's verdict
-    aletheia_verdict: str  # "TRUE", "FALSE", "UNCERTAIN"
-    aletheia_confidence: float
-    verdict_summary: str
+    # Challenger info
+    challenger_wallet: str
+    stake_amount: float  # in SOL
+    position: str  # "ai_wrong" 
     
-    # Pools
-    correct_pool: float = 0.0
-    wrong_pool: float = 0.0
+    # Evidence
+    evidence_links: List[str]
+    explanation: str
+    counter_sources: List[Dict]
+    
+    # Timing
+    created_at: datetime
+    challenge_window_ends: datetime
+    voting_ends: datetime
     
     # Status
-    status: MarketStatus = MarketStatus.OPEN
-    resolution: Optional[ResolutionOutcome] = None
+    status: ChallengeStatus  # PENDING, VOTING, RESOLVED, CANCELLED
+    
+    # Voting
+    votes_for_ai: float  # Weighted votes
+    votes_for_challenger: float
+    voter_count: int
+    
+    # Resolution
+    winner: Optional[str]  # "ai" or "challenger"
+    payout_amount: Optional[float]
+    resolved_at: Optional[datetime]
+
+
+class ChallengeStatus(Enum):
+    PENDING = "pending"           # Just submitted
+    VOTING = "voting"             # Community voting in progress
+    RESOLVED_AI_WIN = "ai_win"    # AI was correct
+    RESOLVED_USER_WIN = "user_win" # Challenger was correct
+    CANCELLED = "cancelled"        # Insufficient votes / refunded
+    DISPUTED = "disputed"          # Under review
+
 
 @dataclass
-class Bet:
-    bet_id: str
-    user_id: str
-    market_id: str
-    position: BetPosition
-    amount: float
-    odds_at_bet: float
-    potential_payout: float
-    status: str  # active, won, lost, refunded
+class Vote:
+    vote_id: str
+    challenge_id: str
+    voter_wallet: str
+    position: str  # "ai" or "challenger"
+    weight: float  # Weighted vote value
+    reasoning: Optional[str]
+    timestamp: datetime
+
 
 @dataclass
-class User:
-    user_id: str
-    username: str
-    balance: float  # ALETH tokens
-    total_bets: int
-    wins: int
-    losses: int
-    total_profit: float
+class AletheiaTreasury:
+    total_balance: float  # SOL
+    reserved_for_payouts: float  # Locked for pending challenges
+    available_balance: float
+    
+    # Stats
+    total_challenges_received: int
+    challenges_won: int
+    challenges_lost: int
+    total_earned_from_wins: float
+    total_paid_to_winners: float
 ```
+
+### 9.8 Challenge Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        CHALLENGE LIFECYCLE                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. SUBMISSION                                                               │
+│     POST /challenge/submit                                                   │
+│     {                                                                        │
+│       "verdict_id": "vrd_abc123",                                           │
+│       "stake_amount": 10.0,                                                 │
+│       "evidence_links": ["https://...", "https://..."],                     │
+│       "explanation": "The verdict is wrong because..."                      │
+│     }                                                                        │
+│                                                                              │
+│     → Validate stake (1-100 SOL)                                            │
+│     → Lock stake in escrow                                                  │
+│     → Create Challenge record                                               │
+│     → Emit "challenge_created" event                                        │
+│                                                                              │
+│  2. VOTING PERIOD (48 hours)                                                │
+│     POST /challenge/{id}/vote                                               │
+│     {                                                                        │
+│       "position": "ai",  // or "challenger"                                 │
+│       "reasoning": "Because the evidence shows..."                          │
+│     }                                                                        │
+│                                                                              │
+│     → Validate voter eligibility                                            │
+│     → Calculate vote weight                                                 │
+│     → Record vote                                                           │
+│     → Update running totals                                                 │
+│                                                                              │
+│  3. RESOLUTION                                                               │
+│     Triggered automatically when voting_ends                                │
+│                                                                              │
+│     IF voter_count < 50:                                                    │
+│       → Refund challenger stake                                             │
+│       → Status = CANCELLED                                                  │
+│                                                                              │
+│     ELSE IF votes_for_ai > votes_for_challenger:                            │
+│       → Transfer challenger stake to Treasury                               │
+│       → Status = RESOLVED_AI_WIN                                            │
+│       → Reward AI voters with reputation                                    │
+│                                                                              │
+│     ELSE:                                                                   │
+│       → Pay challenger 2x stake from Treasury                               │
+│       → Status = RESOLVED_USER_WIN                                          │
+│       → Correct the verdict in database                                     │
+│       → Reward challenger voters with tokens                                │
+│       → Log for AI learning                                                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.9 API Endpoints for DOW
+
+```python
+# Challenge Endpoints
+POST   /challenge/submit          # Submit a new challenge
+GET    /challenge/{id}            # Get challenge details
+GET    /challenge/active          # List active challenges
+POST   /challenge/{id}/vote       # Vote on a challenge
+GET    /challenge/{id}/votes      # Get vote breakdown
+
+# Treasury Endpoints  
+GET    /treasury/balance          # Get treasury stats
+GET    /treasury/history          # Transaction history
+
+# User Challenge Stats
+GET    /user/{wallet}/challenges  # User's challenge history
+GET    /user/{wallet}/votes       # User's voting history
+GET    /user/{wallet}/reputation  # Reputation score & breakdown
+
+# Leaderboard
+GET    /leaderboard/challengers   # Top successful challengers
+GET    /leaderboard/voters        # Most accurate voters
+```
+
+### 9.10 Frontend UI for Challenges
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│  📋 VERDICT: "Apple's market cap exceeded $3 trillion in 2024"              │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  🤖 ALETHEIA VERDICT                                                 │    │
+│  │                                                                      │    │
+│  │  ✅ TRUE                                                             │    │
+│  │  Confidence: 97.5%                                                   │    │
+│  │                                                                      │    │
+│  │  Based on: SEC filings, Bloomberg, Reuters                          │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+│  ─────────────────────────────────────────────────────────────────────────  │
+│                                                                              │
+│  ⚔️ THINK WE'RE WRONG?                                                      │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                                                                      │    │
+│  │  Stake Amount: [____10____] SOL                                      │    │
+│  │                                                                      │    │
+│  │  Your Evidence (paste links):                                        │    │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │    │
+│  │  │ https://...                                                    │  │    │
+│  │  │ https://...                                                    │  │    │
+│  │  └───────────────────────────────────────────────────────────────┘  │    │
+│  │                                                                      │    │
+│  │  Explain why the verdict is wrong:                                   │    │
+│  │  ┌───────────────────────────────────────────────────────────────┐  │    │
+│  │  │ The claim is incorrect because...                              │  │    │
+│  │  │                                                                │  │    │
+│  │  └───────────────────────────────────────────────────────────────┘  │    │
+│  │                                                                      │    │
+│  │  ⚠️ If you lose, your 10 SOL stake will be forfeited               │    │
+│  │  💰 If you win, you receive 20 SOL (2x your stake)                  │    │
+│  │                                                                      │    │
+│  │  [🔗 CONNECT WALLET]  [⚔️ SUBMIT CHALLENGE]                         │    │
+│  │                                                                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.11 Active Challenge Voting UI
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     ACTIVE CHALLENGE - VOTING OPEN                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📋 CLAIM: "Apple's market cap exceeded $3 trillion in 2024"                │
+│                                                                              │
+│  ┌──────────────────────────────┬──────────────────────────────┐            │
+│  │   🤖 ALETHEIA SAYS: TRUE     │   👤 @truth_seeker SAYS:     │            │
+│  │                              │      FALSE                    │            │
+│  ├──────────────────────────────┼──────────────────────────────┤            │
+│  │                              │                              │            │
+│  │  Evidence:                   │  Counter-Evidence:           │            │
+│  │  • SEC 10-K filing           │  • Market cap fluctuated     │            │
+│  │  • Bloomberg article         │  • Only briefly touched $3T  │            │
+│  │  • Reuters confirmation      │  • Different calculation     │            │
+│  │                              │    methods disagree          │            │
+│  │                              │                              │            │
+│  └──────────────────────────────┴──────────────────────────────┘            │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                           COMMUNITY VOTE                             │    │
+│  │                                                                      │    │
+│  │   🤖 AI Correct                        👤 Challenger Correct        │    │
+│  │   ████████████████░░░░░░░░             ████████░░░░░░░░░░░░░░░░     │    │
+│  │   62% (124 votes)                      38% (76 votes)               │    │
+│  │                                                                      │    │
+│  │   [VOTE FOR AI]                        [VOTE FOR CHALLENGER]        │    │
+│  │                                                                      │    │
+│  │   ⏰ Voting ends in: 23 hours 45 minutes                            │    │
+│  │   👥 Minimum votes needed: 50 ✅ (200 votes cast)                   │    │
+│  │   💰 Challenger's stake: 10 SOL                                     │    │
+│  │                                                                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.12 Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Challenge Data Models | ❌ Not Started | Need to create in backend |
+| Challenge API Endpoints | ❌ Not Started | POST/GET for challenges |
+| Voting System | ❌ Not Started | Vote weight calculation |
+| Treasury Management | ❌ Not Started | SOL escrow and payouts |
+| Solana Integration | ❌ Not Started | Wallet connect, transactions |
+| Challenge UI | ❌ Not Started | Frontend components |
+| Voting UI | ❌ Not Started | Frontend components |
+| Anti-Sybil Measures | ❌ Not Started | Reputation system |
 
 ---
 
