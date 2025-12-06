@@ -1,8 +1,8 @@
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.backend
     container_name: aletheia-backend
     ports:
       - "8000:8000"
@@ -14,11 +14,15 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=http://backend:8000
     container_name: aletheia-frontend
     ports:
       - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://backend:8000
     depends_on:
       - backend
     restart: unless-stopped
