@@ -7,6 +7,9 @@ import VerificationProgress, { Log } from "../components/VerificationProgress";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
 
+// Use consistent API URL variable
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -22,8 +25,7 @@ export default function Home() {
     setSources([]);
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-      const res = await fetch(`${apiBaseUrl}/verify_stream`, {
+      const res = await fetch(`${API_BASE_URL}/verify_stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ claim: query }),

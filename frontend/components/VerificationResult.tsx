@@ -82,7 +82,7 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                         <div>
                             <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Final Verdict_</div>
-                            <h2 className={clsx("text-6xl md:text-8xl font-bold font-display uppercase leading-none", statusColor)}>
+                            <h2 className={clsx("text-3xl md:text-5xl font-bold font-display uppercase leading-none", statusColor)}>
                                 {verdict_text || (isTrue ? "VERIFIED" : isFalse ? "DEBUNKED" : "UNCERTAIN")}
                             </h2>
                             <p className="text-muted-foreground mt-2 font-mono text-sm uppercase flex items-center gap-4">
