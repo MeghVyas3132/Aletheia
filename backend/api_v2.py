@@ -69,8 +69,14 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
+    "https://aletheia-rczr.onrender.com",  # Render frontend
+    "https://aletheia-frontend.vercel.app",  # Vercel frontend (add your actual domain)
     os.getenv("FRONTEND_URL", "http://localhost:3000"),
 ]
+
+# Allow all origins if CORS_ALLOW_ALL is set (for development/testing)
+if os.getenv("CORS_ALLOW_ALL", "").lower() == "true":
+    ALLOWED_ORIGINS = ["*"]
 
 # Admin API key for protected endpoints
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "aletheia-admin-key-change-in-prod")
