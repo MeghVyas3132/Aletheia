@@ -58,13 +58,21 @@ class VerificationHistoryDB:
     """SQLite-based verification history storage."""
     
     def __init__(self, db_path: str = None):
-        self.db_path = db_path or os.getenv(
-            "VERIFICATION_DB_PATH",
-            os.path.join(os.path.dirname(__file__), "storage", "verification_history.db")
-        )
+        # Determine database path with fallbacks
+        if db_path:
+            self.db_path = db_path
+        else:
+            default_path = os.path.join(os.path.dirname(__file__), "storage", "verification_history.db")
+            self.db_path = os.getenv("VERIFICATION_DB_PATH", default_path)
         
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        # Ensure directory exists with fallback
+        db_dir = os.path.dirname(self.db_path)
+        try:
+            if db_dir:
+                os.makedirs(db_dir, exist_ok=True)
+        except OSError:
+            # Fallback to current directory
+            self.db_path = os.path.join(os.path.dirname(__file__), "verification_history.db")
         
         self._init_db()
         logger.info(f"VerificationHistoryDB initialized at {self.db_path}")
