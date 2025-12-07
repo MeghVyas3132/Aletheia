@@ -55,14 +55,6 @@ export default function About() {
                                 </div>
                             </div>
 
-                            {/* Mohhemad Rayan */}
-                            <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
-                                <div>
-                                    <h2 className="text-2xl font-bold font-display uppercase mb-2">Mohammed Rayan</h2>
-                                    <p className="text-sm text-muted-foreground font-mono uppercase tracking-widest">Web3 Developer</p>
-                                </div>
-                            </div>
-
                             {/* Monali Bundela */}
                             <div className="space-y-4 p-6 border border-border bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-colors">
                                 <div>
