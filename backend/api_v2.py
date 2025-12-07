@@ -504,16 +504,27 @@ async def verify_claim_stream(request: ClaimRequest, req: Request):
                         yield f"data: {json.dumps({'type': 'agent', 'agent': 'ForensicExpert', 'integrity_score': a2_result.get('integrity_score', 0)})}\n\n"
             
             # Combine domain evidence with fact-checker results
-            if domain_evidence:
-                existing_results = a1_result.get("search_results", [])
-                a1_result["search_results"] = existing_results + domain_evidence
+            # Flatten search results from evidence_dossier (same as non-streaming endpoint)
+            flat_sources = []
+            for query_result in a1_result.get("search_results", []):
+                if isinstance(query_result, dict):
+                    for source in query_result.get("results", []):
+                        flat_sources.append(source)
+            
+            # Add domain evidence
+            all_sources = flat_sources + domain_evidence
+            
+            # Debug log
+            logger.info(f"[Stream] Found {len(flat_sources)} sources for claim: {claim[:50]}...")
+            for i, src in enumerate(flat_sources[:3]):
+                logger.info(f"  [Stream] Source {i+1}: {src.get('title', 'N/A')[:80]}")
             
             # Phase 4: Devil's Advocate
             yield f"data: {json.dumps({'type': 'status', 'phase': 'devils_advocate', 'message': 'Devils Advocate challenging the claim...'})}\n\n"
             
             counter_evidence = await devils_advocate.challenge(
                 claim=claim,
-                supporting_evidence=a1_result.get("search_results", []),
+                supporting_evidence=all_sources,
                 entities=triage_result.entities
             )
             
@@ -523,7 +534,7 @@ async def verify_claim_stream(request: ClaimRequest, req: Request):
             yield f"data: {json.dumps({'type': 'status', 'phase': 'council', 'message': 'AI Council convening for debate...'})}\n\n"
             
             supporting_evidence = {
-                "sources": a1_result.get("search_results", []),
+                "sources": all_sources,
                 "verdict": a1_result.get("preliminary_verdict", "UNVERIFIED"),
                 "confidence": a1_result.get("evidence_sufficient", False) and 0.8 or 0.5
             }
