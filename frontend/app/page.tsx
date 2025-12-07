@@ -6,6 +6,7 @@ import VerificationResult from "../components/VerificationResult";
 import VerificationProgress, { Log } from "../components/VerificationProgress";
 import { motion, AnimatePresence } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import Squares from "@/components/Squares";
 
 // Use consistent API URL variable
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
@@ -120,7 +121,12 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground selection:bg-primary/30 overflow-x-hidden font-mono grid-bg transition-colors duration-300">
+    <main className="relative min-h-screen bg-background text-foreground selection:bg-primary/30 overflow-x-hidden font-mono transition-colors duration-300">
+      {/* Squares Background */}
+      <div className="fixed inset-0 z-0">
+        <Squares />
+      </div>
+
       {/* Grid Overlay */}
       <div className="fixed inset-0 z-0 pointer-events-none border-x border-border max-w-7xl mx-auto" />
 

@@ -125,41 +125,12 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                         </div>
                     </motion.section>
 
-                    {/* AI Council Vote */}
-                    {council_vote && (
-                        <motion.section
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.15 }}
-                        >
-                            <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
-                                <span className="w-2 h-2 bg-purple-500"></span>
-                                <Users className="w-4 h-4" />
-                                Council Vote ({debate_rounds || 3} Rounds)
-                            </h3>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 text-center">
-                                    <div className="text-3xl font-bold text-emerald-500">{council_vote.true || 0}</div>
-                                    <div className="text-xs text-muted-foreground uppercase mt-1">True</div>
-                                </div>
-                                <div className="bg-rose-500/10 border border-rose-500/30 p-4 text-center">
-                                    <div className="text-3xl font-bold text-rose-500">{council_vote.false || 0}</div>
-                                    <div className="text-xs text-muted-foreground uppercase mt-1">False</div>
-                                </div>
-                                <div className="bg-amber-500/10 border border-amber-500/30 p-4 text-center">
-                                    <div className="text-3xl font-bold text-amber-500">{council_vote.uncertain || 0}</div>
-                                    <div className="text-xs text-muted-foreground uppercase mt-1">Uncertain</div>
-                                </div>
-                            </div>
-                        </motion.section>
-                    )}
-
                     {/* Devil's Advocate */}
                     {devils_advocate && (
                         <motion.section
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.18 }}
+                            transition={{ delay: 0.15 }}
                         >
                             <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
                                 <span className="w-2 h-2 bg-rose-500"></span>
@@ -181,6 +152,34 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             </div>
                         </motion.section>
                     )}
+
+                    {/* Aletheia Score */}
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.18 }}
+                    >
+                        <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
+                            <span className="w-2 h-2 bg-cyan-500"></span>
+                            <Scale className="w-4 h-4" />
+                            Aletheia Score
+                        </h3>
+                        <div className={clsx("border p-6", borderColor, "bg-card/50")}>
+                            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Aletheia Says</div>
+                            <div className={clsx("text-3xl font-bold font-display uppercase mb-2", statusColor)}>
+                                {verdict_text || (isTrue ? "VERIFIED" : isFalse ? "DEBUNKED" : "UNCERTAIN")}
+                            </div>
+                            <div className="text-sm text-muted-foreground mb-6">
+                                Confidence Level: <span className="text-foreground font-bold">{(confidence_score * 100).toFixed(0)}%</span>
+                                {confidence_level && (
+                                    <span className="ml-2">({confidence_level})</span>
+                                )}
+                            </div>
+                            <button className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase py-3 px-4 text-xs transition-colors">
+                                Challenge Aletheia
+                            </button>
+                        </div>
+                    </motion.section>
 
                     {/* Sources */}
                     <motion.section
@@ -294,70 +293,6 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             )}
                         </div>
                     </motion.section>
-
-                    {/* Truth Market */}
-                    {market && (
-                        <motion.section
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.4 }}
-                        >
-                            <h3 className="text-xl font-bold text-foreground mb-6 font-display uppercase flex items-center gap-2">
-                                <span className="w-2 h-2 bg-amber-500 animate-pulse"></span>
-                                <Coins className="w-4 h-4" />
-                                Truth Market
-                            </h3>
-
-                            <div className="space-y-4 text-xs font-mono">
-                                <div className="flex justify-between border-b border-border pb-2">
-                                    <span className="text-muted-foreground uppercase">Status</span>
-                                    <span className="text-emerald-500 uppercase font-bold">
-                                        {market.status === "open" ? "🟢 OPEN" : market.status}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between border-b border-border pb-2">
-                                    <span className="text-muted-foreground uppercase">Total Pool</span>
-                                    <span className="text-foreground">{(market.total_pool || 0).toFixed(2)} ALETH</span>
-                                </div>
-                                <div className="flex justify-between border-b border-border pb-2">
-                                    <span className="text-muted-foreground uppercase">Correct Bets</span>
-                                    <span className="text-emerald-500">{(market.correct_pool || 0).toFixed(2)} ALETH</span>
-                                </div>
-                                <div className="flex justify-between border-b border-border pb-2">
-                                    <span className="text-muted-foreground uppercase">Wrong Bets</span>
-                                    <span className="text-rose-500">{(market.wrong_pool || 0).toFixed(2)} ALETH</span>
-                                </div>
-                                
-                                <div className="pt-4">
-                                    <div className="text-muted-foreground uppercase mb-2">Aletheia Says</div>
-                                    <div className={clsx(
-                                        "text-lg font-bold uppercase",
-                                        market.aletheia_verdict === "TRUE" ? "text-emerald-500" :
-                                        market.aletheia_verdict === "FALSE" ? "text-rose-500" : "text-amber-500"
-                                    )}>
-                                        {market.aletheia_verdict}
-                                    </div>
-                                    <div className="text-muted-foreground">
-                                        Confidence: {((market.aletheia_confidence || 0) * 100).toFixed(0)}%
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 border-t border-border">
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <button className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold uppercase py-2 px-4 text-xs transition-colors">
-                                            Bet Correct
-                                        </button>
-                                        <button className="bg-rose-500 hover:bg-rose-600 text-white font-bold uppercase py-2 px-4 text-xs transition-colors">
-                                            Bet Wrong
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-muted-foreground mt-2 text-center">
-                                        Connect wallet to place bets
-                                    </p>
-                                </div>
-                            </div>
-                        </motion.section>
-                    )}
 
                     {/* Claim ID & Triage */}
                     <motion.section
