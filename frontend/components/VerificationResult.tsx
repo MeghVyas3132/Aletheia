@@ -165,15 +165,17 @@ export default function VerificationResult({ data, onReset }: VerificationResult
                             Aletheia Score
                         </h3>
                         <div className={clsx("border p-6", borderColor, "bg-card/50")}>
-                            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Aletheia Says</div>
-                            <div className={clsx("text-3xl font-bold font-display uppercase mb-2", statusColor)}>
-                                {verdict_text || (isTrue ? "VERIFIED" : isFalse ? "DEBUNKED" : "UNCERTAIN")}
+                            <div className="text-xs text-muted-foreground uppercase tracking-widest mb-2">Verdict</div>
+                            <div className={clsx("text-3xl font-bold font-display uppercase mb-4", statusColor)}>
+                                {isTrue ? "TRUE" : isFalse ? "FALSE" : "UNCERTAIN"}
                             </div>
-                            <div className="text-sm text-muted-foreground mb-6">
-                                Confidence Level: <span className="text-foreground font-bold">{(confidence_score * 100).toFixed(0)}%</span>
-                                {confidence_level && (
-                                    <span className="ml-2">({confidence_level})</span>
-                                )}
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="text-sm text-muted-foreground">
+                                    Confidence: <span className="text-foreground font-bold">{(confidence_score * 100).toFixed(0)}%</span>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    Truth Probability: <span className={clsx("font-bold", statusColor)}>{truth_probability.toFixed(0)}%</span>
+                                </div>
                             </div>
                             <button className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold uppercase py-3 px-4 text-xs transition-colors">
                                 Challenge Aletheia
