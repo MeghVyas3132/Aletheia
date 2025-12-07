@@ -691,15 +691,18 @@ async def verify_claim(request: ClaimRequest, req: Request):
                 for source in query_result.get("results", []):
                     flat_sources.append(source)
         
-        # Debug log
-        logger.info(f"Fact checker found {len(flat_sources)} sources for claim: {claim[:50]}...")
-        
         # Combine with domain evidence
         domain_evidence = []
         for dr in domain_results:
             domain_evidence.extend(dr.evidence)
         
         all_sources = flat_sources + domain_evidence
+        
+        # Debug log - show source content
+        logger.info(f"Fact checker found {len(flat_sources)} sources for claim: {claim[:50]}...")
+        for i, src in enumerate(flat_sources[:3]):
+            logger.info(f"  Source {i+1}: {src.get('title', 'N/A')[:80]}")
+            logger.info(f"    Content: {src.get('content', '')[:200]}")
         
         # Devil's Advocate
         counter_evidence = await devils_advocate.challenge(
