@@ -27,13 +27,15 @@ export default function Navbar({ onReset }: NavbarProps) {
             >
                 <Link href="/" className="flex items-center gap-3">
                     {mounted && (
-                        <Image
-                            src={resolvedTheme === "dark" ? "/logo-dark.jpg" : "/logo-light.png"}
-                            alt="Aletheia Logo"
-                            width={40}
-                            height={40}
-                            className="rounded-lg"
-                        />
+                        <div className="h-10 w-10 overflow-hidden rounded-lg relative">
+                            <Image
+                                src={resolvedTheme === "dark" ? "/logo-dark.jpg" : "/logo-light.png"}
+                                alt="Aletheia Logo"
+                                width={40}
+                                height={40}
+                                className="scale-[3.5] object-cover"
+                            />
+                        </div>
                     )}
                     <span className="text-foreground">ALETHEIA</span>
                 </Link>
