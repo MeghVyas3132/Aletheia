@@ -1,403 +1,210 @@
-# Aletheia
+# Aletheia — AI Fact-Checking Platform
 
-**AI-Powered Fact-Checking with Blockchain Verification**
+AI-powered, multi-agent fact-checking with optional on-chain verdict recording.
 
-Aletheia is a multi-agent fact-checking system that verifies claims using AI and stores immutable verdicts on the Aptos blockchain. The system combines web search, forensic text analysis, and trust-weighted consensus to produce probabilistic verdicts with full transparency.
+This repository contains the Aletheia system: a backend (FastAPI + LangGraph agents) and a Next.js frontend. Aletheia ingests a claim, runs a parallel multi-agent verification pipeline (search-based evidence gathering, forensic text analysis, and debate-style juried synthesis), and returns a probabilistic verdict along with audit evidence. Optionally, finalized verdicts can be recorded on the Aptos blockchain and referenced to immutable evidence stored via Shelby Protocol.
 
----
+## Table of contents
 
-## Table of Contents
+- Overview
+- Architecture & components
+- Quickstart (local & Docker)
+- Configuration & environment variables
+- API reference (core endpoints)
+- Developer notes (tests, agents, debugging)
+- Deployment (Render, Docker)
+- Security & operational considerations
+- Contributing
+- License
 
-1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Technology Stack](#technology-stack)
-4. [Installation](#installation)
-5. [Configuration](#configuration)
-6. [Usage](#usage)
-7. [API Reference](#api-reference)
-8. [Blockchain Integration](#blockchain-integration)
-9. [Smart Contract](#smart-contract)
-10. [Security](#security)
-11. [Known Limitations](#known-limitations)
-12. [Contributing](#contributing)
-13. [License](#license)
-
----
 
 ## Overview
 
-### Problem Statement
+Why Aletheia?
 
-Misinformation spreads significantly faster than factual content. Manual fact-checking is slow and resource-intensive, automated filters are easily circumvented, and AI-generated verdicts lack accountability and transparency.
+- Misinformation spreads quickly; manual fact-checking cannot scale.
+- Aletheia combines evidence search, automated forensic checks, and a small juried consensus to produce transparent, explainable verdicts with confidence scores.
 
-### Solution
+What it returns
 
-Aletheia provides a security checkpoint for information verification:
+- Verdict: TRUE / FALSE / UNCERTAIN (and probabilistic variants internally)
+- Confidence: numeric percentage
+- Reasoning: human-readable summary and supporting evidence
+- Optional artifacts: PDF report (Shelby Protocol CID) and on-chain transaction hash (Aptos)
 
-- **Multi-Agent AI System**: Three specialized agents work in parallel to analyze claims from different perspectives
-- **Probabilistic Verdicts**: Results are expressed as confidence percentages with detailed reasoning
-- **Blockchain Immutability**: All verdicts are permanently recorded on the Aptos blockchain
-- **Decentralized Evidence Storage**: Full PDF reports are stored on Shelby Protocol with on-chain references
 
----
+## Architecture & key components
 
-## Architecture
+Top-level layout
 
-```
-aletheia/
-├── backend/
-│   ├── agents/
-│   │   ├── fact_checker.py      # Agent 1: Web search and evidence gathering
-│   │   ├── forensic_expert.py   # Agent 2: Linguistic and AI detection analysis
-│   │   ├── judge.py             # Agent 3: Trust-weighted verdict synthesis
-│   │   ├── claim_processor.py   # Claim classification and metadata extraction
-│   │   └── shelby.py            # PDF generation and decentralized storage
-│   ├── blockchain/
-│   │   ├── aptos_client.py      # Aptos blockchain interaction
-│   │   └── chain_lookup.py      # On-chain verdict lookup and deduplication
-│   ├── move_smart_contract/
-│   │   └── sources/
-│   │       └── verdict_registry.move   # Move smart contract
-│   ├── api.py                   # FastAPI application
-│   └── main.py                  # CLI interface
-└── frontend/
-    ├── app/                     # Next.js application
-    └── components/              # React components
-```
+backend/  — FastAPI server, agent implementations, DOW (truth market) integration, scheduler, and utilities
+frontend/ — Next.js app (TypeScript) for claim submission and results display
+move_smart_contract/ — Move contract sources (verdict registry)
 
-### Processing Pipeline
+Important backend modules
 
-```
-User submits claim
-        |
-        v
-+-----------------------------------+
-|  Deduplication Check              |
-|  Query blockchain for existing    |
-|  verdict via claim hash           |
-+-----------------------------------+
-        |
-        +-- Existing verdict found --> Return cached result
-        |
-        v No existing verdict
-+-----------------------------------+
-|  Parallel Agent Execution         |
-|                                   |
-|  +-------------+ +-------------+  |
-|  | Fact Checker| |  Forensic   |  |
-|  |   Agent 1   | |   Agent 2   |  |
-|  +------+------+ +------+------+  |
-|         |               |         |
-|         +-------+-------+         |
-|                 v                 |
-|         +-------------+           |
-|         |  The Judge  |           |
-|         |   Agent 3   |           |
-|         +-------------+           |
-+-----------------------------------+
-        |
-        v
-+-----------------------------------+
-|  Output Generation                |
-|  - Generate PDF report            |
-|  - Upload to Shelby Protocol      |
-|  - Submit verdict to Aptos        |
-+-----------------------------------+
-        |
-        v
-    Return verdict with confidence score
-```
+- agents/ — Multi-agent implementations
+  - fact_checker.py — builds search queries, fetches evidence (Tavily), and produces an evidence dossier
+  - forensic_expert.py — linguistic analysis, AI-detection heuristics, integrity scoring
+  - ai_council.py — structured adversarial debate and juried voting (Prosecutor/Defender/Jurors)
+  - devils_advocate.py — adversarial counter-arguments to surface weaknesses
+  - shelby.py — PDF generation and Shelby Protocol upload
 
-### Agent Descriptions
+  Note: The Aletheia system is composed of more than 10 specialized AI agents. In addition to the core agents listed above, the codebase includes multiple domain-specific agents, witness/auxiliary agents, and orchestration helpers. Example roles include domain-specific search agents, evidence extractors, the forensic expert, the fact checker, a Devil's Advocate, the Judge, and lightweight witness agents that surface supporting context from specialized sources.
 
-**Agent 1: Fact Checker**
-- Generates targeted search queries based on the claim
-- Executes parallel web searches using Tavily API
-- Gathers evidence from authoritative sources (news outlets, official sites, regulatory filings)
-- Iterates if initial evidence is insufficient
-- Outputs preliminary verdict with supporting evidence
+- api_v2.py — primary HTTP endpoints (/verify, /verify_stream, /health, market endpoints)
+- main.py — CLI tools and PDF/report helpers
+- scheduler.py — background jobs (market resolution, challenge processing)
+- verification_history.py — local verification DB with fallback paths
+- blockchain/ — Aptos client wrappers and lookup helpers
 
-**Agent 2: Forensic Expert**
-- Analyzes linguistic patterns for manipulation indicators
-- Detects urgency and panic markers
-- Evaluates grammar quality and writing professionalism
-- Checks for AI-generated content signatures
-- Outputs integrity score with penalty breakdown
+DOW (Decentralized Oracle of Wisdom)
 
-**Agent 3: The Judge**
-- Normalizes inputs from both agents into comparable metrics
-- Applies dynamic trust-weighted consensus based on evidence quality
-- Generates final probabilistic verdict
-- Produces detailed reasoning and audit evidence package
+The system includes a Decentralized Oracle of Wisdom (DOW) component that implements a staking-based challenge mechanism. DOW uses SOL tokens as the primary incentive currency: users who doubt an Aletheia verdict can challenge it by staking SOL. The challenge is resolved by a community vote (the truth market / juried mechanism). If the community vote favors the challenger, the challenger is returned their stake and may receive additional rewards; if the vote upholds the original verdict, the challenger's stake is deducted (distributed according to the market rules). This design aligns financial incentives with accurate verification and allows users to dispute results transparently.
 
----
 
-## Technology Stack
+## Quickstart — Local (recommended for development)
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| AI Orchestration | LangGraph | Multi-agent state machine workflows |
-| Language Model | Gemini 2.5 Flash | Fast inference for all agent reasoning |
-| Web Search | Tavily API | Real-time evidence gathering |
-| Backend API | FastAPI | REST API with async support |
-| Frontend | Next.js, TypeScript | User interface |
-| PDF Generation | ReportLab | Professional report creation |
-| Blockchain | Aptos (Move) | Immutable verdict storage |
-| Decentralized Storage | Shelby Protocol | Evidence preservation |
+1) Backend (Python)
 
----
+- Create and activate a Python 3.12+ virtual environment
 
-## Installation
+  python3 -m venv .venv
+  source .venv/bin/activate
 
-### Prerequisites
+- Install Python dependencies
 
-- Python 3.12 or higher
-- Node.js 18 or higher
-- uv or pip (Python package manager)
-- Aptos CLI (optional, for smart contract deployment)
+  # inside backend/
+  pip install -r requirements.txt
 
-### Backend Setup
+- Create a backend `.env` (see Configuration below)
 
-```bash
-# Clone the repository
-git clone https://github.com/MeghVyas3132/Aletheia.git
-cd Aletheia/backend
+- Run the API in dev mode
 
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+  cd backend
+  uvicorn api_v2:app --reload --host 0.0.0.0 --port 8000
 
-# Install dependencies
-pip install -e .
-# Or using uv:
-uv pip install -e .
+The API docs are available at http://localhost:8000/docs
 
-# Copy environment template
-cp .env.example .env
-```
 
-### Frontend Setup
+2) Frontend (Next.js)
 
-```bash
-cd frontend
+  cd frontend
+  npm install
+  npm run dev
 
-# Install dependencies
-npm install
-# Or using pnpm:
-pnpm install
+Open http://localhost:3000 and point the frontend to the backend using NEXT_PUBLIC_API_BASE_URL or the built-in env handling.
 
-# Create environment file
-echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
-```
 
----
+3) Docker & docker-compose (local reproducible run)
 
-## Configuration
+Use the provided Dockerfiles for backend and frontend. The backend Dockerfile reads PORT for Render compatibility.
 
-Create a `.env` file in the `backend/` directory with the following variables:
+  docker-compose up --build
 
-```env
-# Required: AI and Search APIs
-GOOGLE_API_KEY=your_gemini_api_key
-TAVILY_API_KEY=your_tavily_api_key
 
-# Required: Blockchain Configuration
-APTOS_PRIVATE_KEY=0x_your_private_key
-APTOS_MODULE_ADDRESS=0x_your_deployed_contract_address
+## Configuration & environment variables
 
-# Optional: Enhanced Rate Limits
-GEOMI_API_KEY=your_geomi_api_key
-```
+Create a `.env` file in `backend/` with at minimum the following keys:
 
-### Obtaining API Keys
+- GROQ_API_KEY — Groq/Gemini LLM key (used by LLM provider)
+- TAVILY_API_KEY — Tavily search API key
+- APTOS_PRIVATE_KEY — Private key for Aptos transactions (only if submitting on-chain)
+- APTOS_MODULE_ADDRESS — Address where verdict registry is deployed (optional)
+- ADMIN_API_KEY — (optional) admin key used by protected endpoints
 
-| Key | Source |
-|-----|--------|
-| GOOGLE_API_KEY | [Google AI Studio](https://aistudio.google.com/app/apikey) |
-| TAVILY_API_KEY | [Tavily](https://tavily.com/) |
-| APTOS_PRIVATE_KEY | Generate using `aptos account create` |
-| GEOMI_API_KEY | [Geomi](https://geomi.dev/) (optional) |
+Note: Do not commit `.env` to source control. Use the `.env.example` template if present.
+
+
+## API reference (core)
+
+POST /verify
+
+- Submits a claim for verification. The request body must contain { "claim": "..." }.
+- Returns a JSON payload with verdict, confidence, reasoning, sources, and optional record references.
+
+POST /verify_stream
+
+- Streaming version of /verify that yields intermediate agent outputs, debate rounds, and vote tallies in real time.
+
+GET /health
+
+- Basic health check. See /health/detailed for a more comprehensive component status.
+
+GET /lookup/{claim_hash}
+
+- Checks for an existing on-chain or local cached verdict for the normalized claim.
+
+See `backend/api_v2.py` for more endpoints (market/DOW operations and admin utilities).
+
+
+## Developer notes
+
+Tests
+
+- There are a few integration and smoke tests under `backend/` such as `test_full_system.py` and `test_aptos.py`. Run them from the backend virtualenv.
+
+  python -m pytest -q
+
+Agents & LLMs
+
+- The system uses a lightweight LLM provider wrapper to allow multi-model fallbacks (Groq/Gemini, etc.). The wrapper lives in `backend/agents/llm_provider.py` and can be extended to add retries and model selection logic.
+
+Common issues
+
+- "cannot call asyncio.run() from a running event loop": indicates an async/sync mismatch in agent code — see `fact_checker` and `forensic_expert` for synchronous wrappers.
+- Missing or malformed evidence: ensure the Tavily API key is present and search responses are not rate-limited.
+
+
+## Deployment
+
+Render
+
+- This repo includes `render.yaml` that defines two services: `aletheia-backend` and `aletheia-frontend`.
+- The backend service uses the `backend/Dockerfile`; set the required environment variables (GROQ_API_KEY, TAVILY_API_KEY, APTOS_PRIVATE_KEY) in the Render dashboard.
+
+Other
+
+- You can deploy using any container platform (Docker Hub -> Kubernetes / Fly.io / Render). Ensure secrets are injected securely and set PORT for the backend container if required.
+
+
+## Security & operational considerations
+
+- Secrets management: use a secret manager for production keys; never store private keys in the repository.
+- Rate limiting and input sanitization: the API implements simple rate limiting and input filters. For production, run behind an API gateway with stronger rate limiting and RBAC.
+- LLM quotas: LLM providers may rate-limit or charge per token — configure retries and backoff in `llm_provider`.
+
+
+## Contributing
+
+Contributions are welcome. Suggested workflow:
+
+1. Fork the repository
+2. Create a feature branch
+3. Run tests and linters locally
+4. Submit a PR with a clear description and small, focused changes
+
+Developer tips
+
+- When modifying agents, keep prompts and evidence formats stable across `api_v2.py`, `ai_council.py`, and front-end components to avoid mismatch bugs.
+- Add or update tests that cover the new behavior (happy path + at least one edge case).
+
+
+## License
+
+This project does not include a license file in the repository snapshot. Add a `LICENSE` file (for example MIT) if you want to make the project open source. If you need a recommendation, MIT is a permissive choice.
+
+
+## Acknowledgements
+
+- Tavily for search tooling
+- Groq / Gemini for LLM backends
+- Shelby Protocol for decoupled PDF/evidence storage
+
 
 ---
 
-## Usage
-
-### Command Line Interface
-
-```bash
-cd backend
-source .venv/bin/activate
-python main.py
-```
-
-### API Server
-
-```bash
-cd backend
-source .venv/bin/activate
-uvicorn api:app --reload --host 0.0.0.0 --port 8000
-```
-
-Access the interactive API documentation at `http://localhost:8000/docs`
-
-### Frontend Application
-
-```bash
-cd frontend
-npm run dev
-```
-
-Access the web interface at `http://localhost:3000`
-
----
-
-## API Reference
-
-### POST /verify
-
-Submit a claim for verification.
-
-**Request Body:**
-```json
-{
-  "claim": "The claim text to verify"
-}
-```
-
-**Response:**
-```json
-{
-  "verdict": "TRUE | FALSE | PROBABLY_TRUE | PROBABLY_FALSE | UNCERTAIN",
-  "confidence": 85,
-  "reasoning": "Detailed explanation of the verdict",
-  "sources": ["list", "of", "sources"],
-  "transaction_hash": "0x...",
-  "pdf_url": "https://shelby.protocol/cid/..."
-}
-```
-
-### GET /lookup/{claim_hash}
-
-Check if a verdict already exists for a claim.
-
-**Response:**
-```json
-{
-  "exists": true,
-  "verdict": "TRUE",
-  "confidence": 92,
-  "timestamp": 1701878400,
-  "shelby_cid": "Qm..."
-}
-```
-
-### GET /health
-
-Health check endpoint.
-
-**Response:**
-```json
-{
-  "status": "online",
-  "service": "Aletheia API"
-}
-```
-
----
-
-## Blockchain Integration
-
-### Network Configuration
-
-- **Network**: Aptos Testnet
-- **Explorer**: [Aptos Explorer](https://explorer.aptoslabs.com/?network=testnet)
-
-### On-Chain Data Structure
-
-Each verdict stored on-chain contains:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| claim_hash | String | SHA-256 hash of normalized claim text |
-| claim_signature | String | Semantic signature for similarity matching |
-| keywords | vector | Extracted keywords for discoverability |
-| claim_type | u8 | Classification (0=Timeless, 1=Historical, 2=Breaking, 3=Ongoing, 4=Prediction, 5=Status) |
-| verdict | u8 | Result (1=TRUE, 2=FALSE, 3=PARTIALLY_TRUE, 4=UNVERIFIABLE) |
-| confidence | u8 | Confidence percentage (0-100) |
-| shelby_cid | String | Reference to full PDF report on Shelby Protocol |
-| timestamp | u64 | Unix timestamp of submission |
-| expiry | u64 | Expiration timestamp (0 for permanent) |
-| submitter | address | Wallet address of submitter |
-
-### Design Principles
-
-1. **Deduplication**: Claims are checked against existing verdicts before processing to reduce costs
-2. **Off-Chain Storage**: Full reports are stored on Shelby Protocol; only the CID is stored on-chain
-3. **Expiration Support**: Time-sensitive claims can have expiration timestamps
-4. **Searchability**: Keywords enable verdict discovery
-
----
-
-## Smart Contract
-
-The VerdictRegistry smart contract is located at `backend/move_smart_contract/sources/verdict_registry.move`.
-
-### Deployment
-
-```bash
-cd backend/move_smart_contract
-
-# Compile the contract
-aptos move compile
-
-# Deploy to testnet
-aptos move publish --profile testnet
-```
-
-### Key Functions
-
-- `initialize()`: Set up the registry (called once)
-- `submit_verdict()`: Store a new verdict on-chain
-- `get_verdict()`: Retrieve an existing verdict by claim hash
-- `verdict_exists()`: Check if a verdict exists for a claim
-
----
-
-## Security
-
-### Environment Variables
-
-- Store all secrets in `.env` files (already in `.gitignore`)
-- Never commit API keys, private keys, or credentials
-- Use `.env.example` as a template without real values
-- For production, use secret management services (AWS Secrets Manager, HashiCorp Vault)
-
-### Private Key Management
-
-- Generate keys using `aptos account create`
-- Store private keys only in environment variables
-- Never commit `.aptos/config.yaml`
-- Rotate keys periodically
-- Consider hardware wallets for production deployments
-
-### Input Validation
-
-- All claim inputs are sanitized before processing
-- Prompt injection patterns are filtered
-- Rate limiting is implemented on API endpoints
-
-### Reporting Vulnerabilities
-
-Report security vulnerabilities privately via GitHub Security tab. Do not open public issues for security concerns.
-
----
-
-## Known Limitations
-
-### Search and Evidence
-
-- **Breaking News**: Very recent events may not be indexed; returns "TOO_EARLY_TO_VERIFY"
-- **Paywalled Content**: Limited access to premium news sources
+If you'd like, I can commit this updated README for you, run the backend tests, and push the change to origin/main. Tell me whether to (A) commit & push now, (B) run tests first, or (C) make further edits to the README.
 - **Language Support**: Optimized for English; other languages may have reduced accuracy
 - **Niche Topics**: Specialized claims may lack mainstream source coverage
 
