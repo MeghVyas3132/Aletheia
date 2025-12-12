@@ -1,5 +1,5 @@
 # Aletheia — AI Fact-Checking Platform
-
+Deployed Link - https://aletheia-rczr.onrender.com/
 AI-powered, multi-agent fact-checking with optional on-chain verdict recording.
 
 This repository contains the Aletheia system: a backend (FastAPI + LangGraph agents) and a Next.js frontend. Aletheia ingests a claim, runs a parallel multi-agent verification pipeline (search-based evidence gathering, forensic text analysis, and debate-style juried synthesis), and returns a probabilistic verdict along with audit evidence. Optionally, finalized verdicts can be recorded on the Aptos blockchain and referenced to immutable evidence stored via Shelby Protocol.
